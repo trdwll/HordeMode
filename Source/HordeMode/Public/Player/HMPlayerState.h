@@ -7,11 +7,11 @@
 #include "HMPlayerState.generated.h"
 
 /**
- * 
+ *
  */
 UCLASS()
 class HORDEMODE_API AHMPlayerState : public APlayerState
 {
 	GENERATED_BODY()
-	
+
 };
