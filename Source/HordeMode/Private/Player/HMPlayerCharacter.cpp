@@ -8,10 +8,12 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
 
+#include "Net/UnrealNetwork.h"
+
 //////////////////////////////////////////////////////////////////////////
 // AHMPlayerCharacter
 
-AHMPlayerCharacter::AHMPlayerCharacter()
+AHMPlayerCharacter::AHMPlayerCharacter() : m_Currency(1000)
 {
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
@@ -43,6 +45,13 @@ AHMPlayerCharacter::AHMPlayerCharacter()
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); // Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
 	FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
+}
+
+void AHMPlayerCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(AHMPlayerCharacter, m_Currency);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -126,3 +135,18 @@ void AHMPlayerCharacter::StopCrouch()
 		UnCrouch();
 	}
 }
+
+void AHMPlayerCharacter::AddCurrency(int32 CurrencyToAdd)
+{
+	if (GetLocalRole() < ROLE_Authority)
+	{
+		Server_AddCurrency(CurrencyToAdd);
+	}
+
+	m_Currency += CurrencyToAdd;
+
+	OnCharacterCurrencyChange.Broadcast(m_Currency);
+}
+
+bool AHMPlayerCharacter::Server_AddCurrency_Validate(int32 CurrencyToAdd) { return true; }
+void AHMPlayerCharacter::Server_AddCurrency_Implementation(int32 CurrencyToAdd) { AddCurrency(CurrencyToAdd); }

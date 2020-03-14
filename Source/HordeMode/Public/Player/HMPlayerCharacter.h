@@ -6,6 +6,8 @@
 #include "Base/HMCharacterBase.h"
 #include "HMPlayerCharacter.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCharacterCurrencyChangeDelegate, int32, NewCurrency);
+
 /**
  * The class used for players
  */
@@ -56,14 +58,58 @@ protected:
 	void LookUpAtRate(float Rate);
 
 protected:
-	// APawn interface
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-	// End of APawn interface
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 public:
 	/** Returns CameraBoom subobject **/
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+
+
+	/** Begin stuffs */
+
+private:
+
+	/** The amount of current a player has. */
+	UPROPERTY(Replicated)
+	int32 m_Currency;
+
+public:
+
+	/** Reset the players stats. */
+	UFUNCTION(BlueprintCallable, Category = "HMPlayerCharacter")
+	void ResetPlayer() {}
+
+	/** Get the amount of currency a player has. */
+	UFUNCTION(BlueprintPure, Category = "HMPlayerCharacter")
+	FORCEINLINE int32 GetCurrency() const { return m_Currency; }
+
+	/**
+	 * Add currency to the player
+	 *
+	 * @param int32 CurrencyToAdd The amount of currency to add to the player
+	 */
+	UFUNCTION(BlueprintCallable, Category = "HMPlayerCharacter")
+	void AddCurrency(int32 CurrencyToAdd);
+
+	/**
+	 * --- Server RPC methods ---
+	 */
+private:
+
+	/**
+	 * Server: Add currency to the player
+	 *
+	 * @param int32 CurrencyToAdd The amount of currency to add to the player
+	 */
+	UFUNCTION(Server, Unreliable, WithValidation)
+	void Server_AddCurrency(int32 CurrencyToAdd);
+
+protected:
+
+	UPROPERTY(BlueprintAssignable)
+	FOnCharacterCurrencyChangeDelegate OnCharacterCurrencyChange;
 };
 
