@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright (c) 2020 Russ 'trdwll' Treadwell
 
 #include "Player/HMPlayerCharacter.h"
 #include "Camera/CameraComponent.h"

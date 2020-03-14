@@ -1,7 +1,6 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright (c) 2020 Russ 'trdwll' Treadwell
 
 #include "HordeMode.h"
 #include "Modules/ModuleManager.h"
 
 IMPLEMENT_PRIMARY_GAME_MODULE( FDefaultGameModuleImpl, HordeMode, "HordeMode" );
- 

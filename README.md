@@ -22,3 +22,5 @@ There's not really a roadmap, but the general direction of the project is under 
 
 ## License
 [MIT](https://choosealicense.com/licenses/mit/)
+
+MIT basically means you can do whatever you want with the code/project as long as you provide credits. For example you can sell this project, but you have to put my name (Russ 'trdwll' Treadwell) in the credits.

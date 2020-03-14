@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright (c) 2020 Russ 'trdwll' Treadwell
 
 #pragma once
 
