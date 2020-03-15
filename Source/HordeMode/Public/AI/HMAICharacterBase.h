@@ -14,6 +14,6 @@ class HORDEMODE_API AHMAICharacterBase : public AHMCharacterBase
 {
     GENERATED_BODY()
 public:
-    AHMAICharacterBase();
+    AHMAICharacterBase(const class FObjectInitializer& ObjectInitializer);
 
 };

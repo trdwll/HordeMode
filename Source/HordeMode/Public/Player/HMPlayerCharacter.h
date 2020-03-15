@@ -24,7 +24,11 @@ class HORDEMODE_API AHMPlayerCharacter : public AHMCharacterBase
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true", DisplayName = "Follow Camera"))
 	class UCameraComponent* m_FollowCamera;
 public:
-	AHMPlayerCharacter();
+	AHMPlayerCharacter(const class FObjectInitializer& ObjectInitializer);
+
+	virtual void Tick(float DeltaTime) override;
+	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	/** Base turn rate, in deg/sec. Other scaling may affect final turn rate. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera, meta = (DisplayName = "Base Turn Rate"))
@@ -42,8 +46,63 @@ protected:
 	/** Called for side to side input */
 	void MoveRight(float Value);
 
+	/** Called for crouching input */
 	void StartCrouch();
 	void StopCrouch();
+
+	/** Called for ads input */
+	void StartADS();
+	void StopADS();
+
+	/** Called for sprinting input */
+	void StartSprint();
+	void StopSprint();
+
+private:
+
+	UPROPERTY(Replicated)
+	bool m_bWantsToSprint;
+
+	void SetSprinting(bool bSprint);
+
+	UFUNCTION(Server, Unreliable, WithValidation)
+	void Server_SetSprinting(bool bSprint);
+
+public:
+
+	/** Is the player sprinting? */
+	UFUNCTION(BlueprintPure, Category = "HMPlayerCharacter")
+	FORCEINLINE bool IsSprinting() const
+	{
+		if (!GetCharacterMovement())
+		{
+			return false;
+		}
+
+		// change 0.1 to 0.8 to stop diagonal sprinting
+		return m_bWantsToSprint /*&& !IsTargeting()*/ && !GetVelocity().IsZero() && (FVector::DotProduct(GetVelocity().GetSafeNormal2D(), GetActorRotation().Vector()) > 0.8);
+	}
+
+	/** Is the player standing still? */
+	UFUNCTION(BlueprintPure, Category = "HMPlayerCharacter")
+	FORCEINLINE bool IsStandingStill() const { return GetVelocity().Size() == 0; }
+
+	/** Is the player walking? */
+	UFUNCTION(BlueprintPure, Category = "HMPlayerCharacter")
+	FORCEINLINE bool IsWalking() const
+	{
+		if (!GetCharacterMovement())
+		{
+			return false;
+		}
+
+		return !IsSprinting() && !IsStandingStill();
+	}
+
+protected:
+
+
+
 
 	/**
 	 * Called via input to turn at a given rate.
@@ -57,10 +116,6 @@ protected:
 	 */
 	void LookUpAtRate(float Rate);
 
-protected:
-	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
-
 public:
 	/** Returns CameraBoom subobject **/
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return m_CameraBoom; }
@@ -69,6 +124,9 @@ public:
 
 
 	/** --- Start HMPlayerCharacter code --- */
+protected:
+
+	void Attack();
 
 private:
 

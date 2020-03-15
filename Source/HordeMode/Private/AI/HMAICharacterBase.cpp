@@ -3,6 +3,7 @@
 
 #include "AI/HMAICharacterBase.h"
 
-AHMAICharacterBase::AHMAICharacterBase()
+AHMAICharacterBase::AHMAICharacterBase(const class FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
 {
 }

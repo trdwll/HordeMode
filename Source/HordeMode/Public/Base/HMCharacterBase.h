@@ -16,7 +16,7 @@ class HORDEMODE_API AHMCharacterBase : public ACharacter
 	GENERATED_BODY()
 
 public:
-	AHMCharacterBase();
+	AHMCharacterBase(const class FObjectInitializer& ObjectInitializer);
 
 protected:
 	virtual void BeginPlay() override;

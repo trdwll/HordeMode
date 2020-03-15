@@ -10,6 +10,7 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
 
+#include "Components/HMCharacterMovementComponent.h"
 #include "Interfaces/Interactable.h"
 #include "HordeMode.h"
 
@@ -19,8 +20,9 @@
 #include "Engine.h"
 #endif // _DEBUG
 
-AHMPlayerCharacter::AHMPlayerCharacter()
-	: m_BaseTurnRate(45.0f), m_BaseLookUpRate(45.0f), m_MaxUseDistance(380.0f), m_Currency(1000)
+AHMPlayerCharacter::AHMPlayerCharacter(const class FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer.SetDefaultSubobjectClass<UHMCharacterMovementComponent>(ACharacter::CharacterMovementComponentName)),
+	m_BaseTurnRate(45.0f), m_BaseLookUpRate(45.0f), m_MaxUseDistance(380.0f), m_bWantsToSprint(false), m_Currency(1000)
 {
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
@@ -56,6 +58,17 @@ void AHMPlayerCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(AHMPlayerCharacter, m_Currency);
+	DOREPLIFETIME_CONDITION(AHMPlayerCharacter, m_bWantsToSprint, COND_SkipOwner);
+}
+
+void AHMPlayerCharacter::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+	if (m_bWantsToSprint && !IsSprinting())
+	{
+		SetSprinting(true);
+	}
 }
 
 void AHMPlayerCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
@@ -66,7 +79,15 @@ void AHMPlayerCharacter::SetupPlayerInputComponent(class UInputComponent* Player
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
 	PlayerInputComponent->BindAction("Crouch", IE_Pressed, this, &AHMPlayerCharacter::StartCrouch);
 	PlayerInputComponent->BindAction("Crouch", IE_Released, this, &AHMPlayerCharacter::StopCrouch);
+	PlayerInputComponent->BindAction("Sprint", IE_Pressed, this, &AHMPlayerCharacter::StartSprint);
+	PlayerInputComponent->BindAction("Sprint", IE_Released, this, &AHMPlayerCharacter::StopSprint);
+
 	PlayerInputComponent->BindAction("Interact", IE_Pressed, this, &AHMPlayerCharacter::Interact);
+	PlayerInputComponent->BindAction("Attack", IE_Pressed, this, &AHMPlayerCharacter::Attack);
+
+	PlayerInputComponent->BindAction("ADS", IE_Pressed, this, &AHMPlayerCharacter::StartADS);
+	PlayerInputComponent->BindAction("ADS", IE_Released, this, &AHMPlayerCharacter::StopADS);
+
 
 	PlayerInputComponent->BindAxis("MoveForward", this, &AHMPlayerCharacter::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &AHMPlayerCharacter::MoveRight);
@@ -137,6 +158,43 @@ void AHMPlayerCharacter::StopCrouch()
 	}
 }
 
+void AHMPlayerCharacter::StartSprint() { SetSprinting(true); }
+void AHMPlayerCharacter::StopSprint() { SetSprinting(false); }
+
+void AHMPlayerCharacter::SetSprinting(bool bSprint)
+{
+	m_bWantsToSprint = bSprint;
+
+	if (bIsCrouched)
+	{
+		UnCrouch();
+	}
+
+	if (GetLocalRole() < ROLE_Authority)
+	{
+		Server_SetSprinting(bSprint);
+	}
+}
+
+bool AHMPlayerCharacter::Server_SetSprinting_Validate(bool bSprint) { return true; }
+void AHMPlayerCharacter::Server_SetSprinting_Implementation(bool bSprint) { SetSprinting(bSprint); }
+
+
+void AHMPlayerCharacter::StartADS()
+{
+
+}
+
+void AHMPlayerCharacter::StopADS()
+{
+
+}
+
+void AHMPlayerCharacter::Attack()
+{
+
+}
+
 class AActor* AHMPlayerCharacter::GetActorInView()
 {
 	ACharacter* const Character = Cast<ACharacter>(this);
@@ -186,6 +244,7 @@ void AHMPlayerCharacter::AddCurrency(int32 CurrencyToAdd)
 	if (GetLocalRole() < ROLE_Authority)
 	{
 		Server_AddCurrency(CurrencyToAdd);
+		return;
 	}
 
 	m_Currency += CurrencyToAdd;
