@@ -3,3 +3,6 @@
 
 #include "AI/HMAICharacterBase.h"
 
+AHMAICharacterBase::AHMAICharacterBase()
+{
+}

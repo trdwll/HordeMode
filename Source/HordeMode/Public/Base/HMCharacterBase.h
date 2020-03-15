@@ -16,15 +16,20 @@ class HORDEMODE_API AHMCharacterBase : public ACharacter
 	GENERATED_BODY()
 
 public:
-	// Sets default values for this character's properties
 	AHMCharacterBase();
 
 protected:
-	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
-
-public:
-	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
+
+	/** The health component to allow this character to be damaged. */
+	UPROPERTY(VisibleAnywhere, Category = "HMCharacterBase", meta = (DisplayName = "HMHealthComponent"))
+	class UHMHealthComponent* m_HealthComponent;
+
+
+public:
+	/** Get the health component of this character. */
+	UFUNCTION(BlueprintPure, Category = "HMCharacterBase")
+	FORCEINLINE class UHMHealthComponent* GetHealthComponent() const { return m_HealthComponent; }
 };

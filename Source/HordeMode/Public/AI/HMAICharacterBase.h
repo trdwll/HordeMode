@@ -12,6 +12,8 @@
 UCLASS()
 class HORDEMODE_API AHMAICharacterBase : public AHMCharacterBase
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
+public:
+    AHMAICharacterBase();
 
 };

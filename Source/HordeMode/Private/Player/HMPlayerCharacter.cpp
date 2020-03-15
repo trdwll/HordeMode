@@ -40,6 +40,8 @@ AHMPlayerCharacter::AHMPlayerCharacter() : m_Currency(1000)
 	CameraBoom->SetupAttachment(RootComponent);
 	CameraBoom->TargetArmLength = 300.0f; // The camera follows at this distance behind the character
 	CameraBoom->bUsePawnControlRotation = true; // Rotate the arm based on the controller
+	CameraBoom->SocketOffset = FVector(0, 35, 0);
+	CameraBoom->TargetOffset = FVector(0, 0, 55);
 
 	// Create a follow camera
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
