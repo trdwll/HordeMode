@@ -2,29 +2,31 @@
 
 #include "Player/HMPlayerCharacter.h"
 #include "Camera/CameraComponent.h"
+
 #include "Components/CapsuleComponent.h"
 #include "Components/InputComponent.h"
+
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
 
+#include "Interfaces/Interactable.h"
+#include "HordeMode.h"
+
 #include "Net/UnrealNetwork.h"
 
-//////////////////////////////////////////////////////////////////////////
-// AHMPlayerCharacter
+#ifdef _DEBUG
+#include "Engine.h"
+#endif // _DEBUG
 
-AHMPlayerCharacter::AHMPlayerCharacter() : m_Currency(1000)
+AHMPlayerCharacter::AHMPlayerCharacter()
+	: m_BaseTurnRate(45.0f), m_BaseLookUpRate(45.0f), m_MaxUseDistance(380.0f), m_Currency(1000)
 {
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
 
-	// set our turn rates for input
-	BaseTurnRate = 45.f;
-	BaseLookUpRate = 45.f;
-
-	// Don't rotate when the controller rotates. Let that just affect the camera.
 	bUseControllerRotationPitch = false;
-	bUseControllerRotationYaw = false;
+	bUseControllerRotationYaw = true;
 	bUseControllerRotationRoll = false;
 
 	// Configure character movement
@@ -36,17 +38,17 @@ AHMPlayerCharacter::AHMPlayerCharacter() : m_Currency(1000)
 	GetMovementComponent()->GetNavAgentPropertiesRef().bCanCrouch = true;
 
 	// Create a camera boom (pulls in towards the player if there is a collision)
-	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
-	CameraBoom->SetupAttachment(RootComponent);
-	CameraBoom->TargetArmLength = 300.0f; // The camera follows at this distance behind the character
-	CameraBoom->bUsePawnControlRotation = true; // Rotate the arm based on the controller
-	CameraBoom->SocketOffset = FVector(0, 35, 0);
-	CameraBoom->TargetOffset = FVector(0, 0, 55);
+	m_CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
+	m_CameraBoom->SetupAttachment(RootComponent);
+	m_CameraBoom->TargetArmLength = 300.0f; // The camera follows at this distance behind the character
+	m_CameraBoom->bUsePawnControlRotation = true; // Rotate the arm based on the controller
+	m_CameraBoom->SocketOffset = FVector(0, 35, 0);
+	m_CameraBoom->TargetOffset = FVector(0, 0, 55);
 
 	// Create a follow camera
-	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
-	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); // Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
-	FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
+	m_FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
+	m_FollowCamera->SetupAttachment(m_CameraBoom, USpringArmComponent::SocketName); // Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
+	m_FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
 }
 
 void AHMPlayerCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -56,9 +58,6 @@ void AHMPlayerCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	DOREPLIFETIME(AHMPlayerCharacter, m_Currency);
 }
 
-//////////////////////////////////////////////////////////////////////////
-// Input
-
 void AHMPlayerCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
 {
 	// Set up gameplay key bindings
@@ -67,7 +66,7 @@ void AHMPlayerCharacter::SetupPlayerInputComponent(class UInputComponent* Player
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
 	PlayerInputComponent->BindAction("Crouch", IE_Pressed, this, &AHMPlayerCharacter::StartCrouch);
 	PlayerInputComponent->BindAction("Crouch", IE_Released, this, &AHMPlayerCharacter::StopCrouch);
-	// PlayerInputComponent->BindAction("Interact", IE_Pressed, this, &AHMPlayerCharacter::Interact);
+	PlayerInputComponent->BindAction("Interact", IE_Pressed, this, &AHMPlayerCharacter::Interact);
 
 	PlayerInputComponent->BindAxis("MoveForward", this, &AHMPlayerCharacter::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &AHMPlayerCharacter::MoveRight);
@@ -84,13 +83,13 @@ void AHMPlayerCharacter::SetupPlayerInputComponent(class UInputComponent* Player
 void AHMPlayerCharacter::TurnAtRate(float Rate)
 {
 	// calculate delta for this frame from the rate information
-	AddControllerYawInput(Rate * BaseTurnRate * GetWorld()->GetDeltaSeconds());
+	AddControllerYawInput(Rate * m_BaseTurnRate * GetWorld()->GetDeltaSeconds());
 }
 
 void AHMPlayerCharacter::LookUpAtRate(float Rate)
 {
 	// calculate delta for this frame from the rate information
-	AddControllerPitchInput(Rate * BaseLookUpRate * GetWorld()->GetDeltaSeconds());
+	AddControllerPitchInput(Rate * m_BaseLookUpRate * GetWorld()->GetDeltaSeconds());
 }
 
 void AHMPlayerCharacter::MoveForward(float Value)
@@ -124,7 +123,7 @@ void AHMPlayerCharacter::MoveRight(float Value)
 
 void AHMPlayerCharacter::StartCrouch()
 {
-	//if (!bIsCrouched)
+	if (!bIsCrouched)
 	{
 		Crouch();
 	}
@@ -132,9 +131,53 @@ void AHMPlayerCharacter::StartCrouch()
 
 void AHMPlayerCharacter::StopCrouch()
 {
-	//if (bIsCrouched)
+	if (bIsCrouched)
 	{
 		UnCrouch();
+	}
+}
+
+class AActor* AHMPlayerCharacter::GetActorInView()
+{
+	ACharacter* const Character = Cast<ACharacter>(this);
+
+	// If the character or the controller for the character are null then return a nullptr instead of running the rest of the method
+	if (Character == nullptr || Character->GetController() == nullptr)
+	{
+		return nullptr;
+	}
+
+	// Get the players view point (what they're looking at)
+	FVector CameraLocation;
+	FRotator CameraRotation;
+	Character->GetController()->GetPlayerViewPoint(CameraLocation, CameraRotation);
+
+	// Calculate the end location for the line trace
+	FVector EndLocation = CameraLocation + (CameraRotation.Vector() * m_MaxUseDistance);
+
+	FCollisionQueryParams TraceParams(FName(TEXT("")), true, this);
+	TraceParams.bTraceComplex = true;
+
+	// Perform the line trace
+	FHitResult HitRes;
+	GetWorld()->LineTraceSingleByChannel(HitRes, CameraLocation, EndLocation, ECC_GameTraceChannel18, TraceParams);
+
+#ifdef _DEBUG
+	DrawDebugLine(GetWorld(), CameraLocation, EndLocation, FColor::Yellow, false, 10.0f, 0, 1.0f);
+#endif // _DEBUG
+
+	return Cast<AActor>(HitRes.Actor);
+}
+
+void AHMPlayerCharacter::Interact()
+{
+	if (AActor* const actor = GetActorInView())
+	{
+		// If the actor that you're looking at implements the interface InteractInterface
+		if (actor->GetClass()->ImplementsInterface(UInteractable::StaticClass()))
+		{
+			IInteractable::Execute_Interact(actor);
+		}
 	}
 }
 

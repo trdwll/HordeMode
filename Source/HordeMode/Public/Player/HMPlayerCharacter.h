@@ -17,22 +17,22 @@ class HORDEMODE_API AHMPlayerCharacter : public AHMCharacterBase
 	GENERATED_BODY()
 
 	/** Camera boom positioning the camera behind the character */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
-	class USpringArmComponent* CameraBoom;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true", DisplayName = "Camera Boom"))
+	class USpringArmComponent* m_CameraBoom;
 
 	/** Follow camera */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
-	class UCameraComponent* FollowCamera;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true", DisplayName = "Follow Camera"))
+	class UCameraComponent* m_FollowCamera;
 public:
 	AHMPlayerCharacter();
 
 	/** Base turn rate, in deg/sec. Other scaling may affect final turn rate. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera)
-	float BaseTurnRate;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera, meta = (DisplayName = "Base Turn Rate"))
+	float m_BaseTurnRate;
 
 	/** Base look up/down rate, in deg/sec. Other scaling may affect final rate. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera)
-	float BaseLookUpRate;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera, meta = (DisplayName = "Base Lookup Rate"))
+	float m_BaseLookUpRate;
 
 protected:
 
@@ -63,14 +63,26 @@ protected:
 
 public:
 	/** Returns CameraBoom subobject **/
-	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
+	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return m_CameraBoom; }
 	/** Returns FollowCamera subobject **/
-	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return m_FollowCamera; }
 
 
-	/** Begin stuffs */
+	/** --- Start HMPlayerCharacter code --- */
 
 private:
+
+	/** Get the actor in the characters view */
+    UFUNCTION(BlueprintCallable, Category = "HMPlayerCharacter")
+    class AActor* GetActorInView();
+
+	UFUNCTION(BlueprintCallable, Category = "HMPlayerCharacter")
+	void Interact();
+
+	// TODO: Create a ServerRPC for Interact
+
+    /** The distance that a character can interact with an actor. */
+	float m_MaxUseDistance;
 
 	/** The amount of current a player has. */
 	UPROPERTY(Replicated)
@@ -94,9 +106,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "HMPlayerCharacter")
 	void AddCurrency(int32 CurrencyToAdd);
 
-	/**
-	 * --- Server RPC methods ---
-	 */
+	/** --- Server RPC methods --- */
 private:
 
 	/**
