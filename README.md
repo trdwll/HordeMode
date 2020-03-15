@@ -17,6 +17,8 @@ Pull requests are welcome. For major changes, please open an issue first to disc
 
 C++ in the project are required to use the [code guidelines](https://github.com/trdwll/HordeMode/blob/master/CODEGUIDELINES.md).
 
+Want to contribute something else like audio or a model? Awesome! Open a pull request or make an issue.
+
 ## Roadmap
 There's not really a roadmap, but the general direction of the project is under [Projects](https://github.com/trdwll/HordeMode/projects).
 
