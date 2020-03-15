@@ -45,6 +45,8 @@ void UHMHealthComponent::HandleTakeAnyDamage(AActor* DamagedActor, float Damage,
 	if (!IsAlive())
 	{
 		// TODO: cast to GM and run Killed
+
+		OnActorDeath.Broadcast();
 	}
 }
 

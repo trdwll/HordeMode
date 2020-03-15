@@ -15,6 +15,7 @@ enum class ETeamType : uint8
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(FOnHealthChangedDelegate, UHMHealthComponent*, OwningHealthComp, float, Health, const class UDamageType*, DamageType, class AController*, InstigatedBy, AActor*, DamageCauser);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnActorDeathDelegate);
 
 UCLASS( ClassGroup=(HordeMode), meta=(BlueprintSpawnableComponent) )
 class HORDEMODE_API UHMHealthComponent final : public UActorComponent
@@ -99,4 +100,8 @@ public:
 	/** Delegate for when the health is changed for this actor. */
 	UPROPERTY(BlueprintAssignable)
 	FOnHealthChangedDelegate OnHealthChanged;
+
+	/** Delegate for when the actor is killed. */
+	UPROPERTY(BlueprintAssignable)
+	FOnActorDeathDelegate OnActorDeath;
 };
