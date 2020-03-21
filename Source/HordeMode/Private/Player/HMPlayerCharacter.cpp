@@ -22,7 +22,7 @@
 
 AHMPlayerCharacter::AHMPlayerCharacter(const class FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UHMCharacterMovementComponent>(ACharacter::CharacterMovementComponentName)),
-	m_BaseTurnRate(45.0f), m_BaseLookUpRate(45.0f), m_MaxUseDistance(380.0f), m_bWantsToSprint(false), m_Currency(1000)
+	m_BaseTurnRate(45.0f), m_BaseLookUpRate(45.0f), m_MaxUseDistance(380.0f), m_bIsSprinting(false), m_Currency(1000)
 {
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
@@ -58,14 +58,26 @@ void AHMPlayerCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(AHMPlayerCharacter, m_Currency);
-	DOREPLIFETIME_CONDITION(AHMPlayerCharacter, m_bWantsToSprint, COND_SkipOwner);
+	DOREPLIFETIME_CONDITION(AHMPlayerCharacter, m_bIsJumping, COND_SkipOwner);
+	DOREPLIFETIME_CONDITION(AHMPlayerCharacter, m_bIsSprinting, COND_SkipOwner);
+	DOREPLIFETIME_CONDITION(AHMPlayerCharacter, m_bIsADS, COND_SkipOwner);
+}
+
+void AHMPlayerCharacter::OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode)
+{
+	Super::OnMovementModeChanged(PrevMovementMode, PreviousCustomMode);
+
+	if (PrevMovementMode == EMovementMode::MOVE_Falling && GetCharacterMovement()->MovementMode != EMovementMode::MOVE_Falling)
+	{
+		SetJumping(false);
+	}
 }
 
 void AHMPlayerCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (m_bWantsToSprint && !IsSprinting())
+	if (m_bIsSprinting && !IsSprinting())
 	{
 		SetSprinting(true);
 	}
@@ -75,8 +87,8 @@ void AHMPlayerCharacter::SetupPlayerInputComponent(class UInputComponent* Player
 {
 	// Set up gameplay key bindings
 	check(PlayerInputComponent);
-	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
-	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
+	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &AHMPlayerCharacter::StartJump);
+	// PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
 	PlayerInputComponent->BindAction("Crouch", IE_Pressed, this, &AHMPlayerCharacter::StartCrouch);
 	PlayerInputComponent->BindAction("Crouch", IE_Released, this, &AHMPlayerCharacter::StopCrouch);
 	PlayerInputComponent->BindAction("Sprint", IE_Pressed, this, &AHMPlayerCharacter::StartSprint);
@@ -158,12 +170,37 @@ void AHMPlayerCharacter::StopCrouch()
 	}
 }
 
+void AHMPlayerCharacter::StartJump() { SetJumping(true); }
+
+void AHMPlayerCharacter::SetJumping(bool bJumping)
+{
+	m_bIsJumping = bJumping;
+
+	if (bJumping)
+	{
+		if (bIsCrouched)
+		{
+			UnCrouch();
+		}
+
+		Jump();
+	}
+
+	if (GetLocalRole() < ROLE_Authority)
+	{
+		Server_SetJumping(bJumping);
+	}
+}
+
+bool AHMPlayerCharacter::Server_SetJumping_Validate(bool bJumping) { return true; }
+void AHMPlayerCharacter::Server_SetJumping_Implementation(bool bJumping) { SetJumping(bJumping); }
+
 void AHMPlayerCharacter::StartSprint() { SetSprinting(true); }
 void AHMPlayerCharacter::StopSprint() { SetSprinting(false); }
 
 void AHMPlayerCharacter::SetSprinting(bool bSprint)
 {
-	m_bWantsToSprint = bSprint;
+	m_bIsSprinting = bSprint;
 
 	if (bIsCrouched)
 	{
@@ -180,14 +217,25 @@ bool AHMPlayerCharacter::Server_SetSprinting_Validate(bool bSprint) { return tru
 void AHMPlayerCharacter::Server_SetSprinting_Implementation(bool bSprint) { SetSprinting(bSprint); }
 
 
-void AHMPlayerCharacter::StartADS()
-{
+void AHMPlayerCharacter::StartADS() { SetADS(true); }
+void AHMPlayerCharacter::StopADS() { SetADS(false); }
 
+void AHMPlayerCharacter::SetADS(bool bADS)
+{
+	m_bIsADS = bADS;
+
+	if (GetLocalRole() < ROLE_Authority)
+	{
+		Server_SetADS(bADS);
+	}
 }
 
-void AHMPlayerCharacter::StopADS()
-{
+bool AHMPlayerCharacter::Server_SetADS_Validate(bool bADS) { return true; }
+void AHMPlayerCharacter::Server_SetADS_Implementation(bool bADS) { SetADS(bADS); }
 
+FRotator AHMPlayerCharacter::GetAimOffsets() const
+{
+	return ActorToWorld().InverseTransformVectorNoScale(GetBaseAimRotation().Vector()).Rotation();
 }
 
 void AHMPlayerCharacter::Attack()

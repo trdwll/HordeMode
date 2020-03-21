@@ -29,6 +29,8 @@ public:
 	virtual void Tick(float DeltaTime) override;
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual void OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode = 0) override;
+
 
 	/** Base turn rate, in deg/sec. Other scaling may affect final turn rate. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera, meta = (DisplayName = "Base Turn Rate"))
@@ -37,6 +39,8 @@ public:
 	/** Base look up/down rate, in deg/sec. Other scaling may affect final rate. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera, meta = (DisplayName = "Base Lookup Rate"))
 	float m_BaseLookUpRate;
+
+
 
 protected:
 
@@ -54,55 +58,15 @@ protected:
 	void StartADS();
 	void StopADS();
 
+	/** Called for jump input */
+	void StartJump();
+
 	/** Called for sprinting input */
 	void StartSprint();
 	void StopSprint();
 
-private:
-
-	UPROPERTY(Replicated)
-	bool m_bWantsToSprint;
-
-	void SetSprinting(bool bSprint);
-
-	UFUNCTION(Server, Unreliable, WithValidation)
-	void Server_SetSprinting(bool bSprint);
-
-public:
-
-	/** Is the player sprinting? */
-	UFUNCTION(BlueprintPure, Category = "HMPlayerCharacter")
-	FORCEINLINE bool IsSprinting() const
-	{
-		if (!GetCharacterMovement())
-		{
-			return false;
-		}
-
-		// change 0.1 to 0.8 to stop diagonal sprinting
-		return m_bWantsToSprint /*&& !IsTargeting()*/ && !GetVelocity().IsZero() && (FVector::DotProduct(GetVelocity().GetSafeNormal2D(), GetActorRotation().Vector()) > 0.8);
-	}
-
-	/** Is the player standing still? */
-	UFUNCTION(BlueprintPure, Category = "HMPlayerCharacter")
-	FORCEINLINE bool IsStandingStill() const { return GetVelocity().Size() == 0; }
-
-	/** Is the player walking? */
-	UFUNCTION(BlueprintPure, Category = "HMPlayerCharacter")
-	FORCEINLINE bool IsWalking() const
-	{
-		if (!GetCharacterMovement())
-		{
-			return false;
-		}
-
-		return !IsSprinting() && !IsStandingStill();
-	}
 
 protected:
-
-
-
 
 	/**
 	 * Called via input to turn at a given rate.
@@ -123,7 +87,81 @@ public:
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return m_FollowCamera; }
 
 
+
 	/** --- Start HMPlayerCharacter code --- */
+
+private:
+
+	UPROPERTY(Replicated)
+	bool m_bIsJumping;
+
+	void SetJumping(bool bJumping);
+
+	UFUNCTION(Server, Unreliable, WithValidation)
+	void Server_SetJumping(bool bJumping);
+
+
+	/** Is the player sprinting? */
+	UPROPERTY(Replicated)
+	bool m_bIsSprinting;
+
+	void SetSprinting(bool bSprint);
+
+	UFUNCTION(Server, Unreliable, WithValidation)
+	void Server_SetSprinting(bool bSprint);
+
+
+	/** Is the player ADS? */
+	UPROPERTY(Replicated)
+	bool m_bIsADS;
+
+	void SetADS(bool bADS);
+
+	UFUNCTION(Server, Unreliable, WithValidation)
+	void Server_SetADS(bool bADS);
+
+public:
+
+	/** Is the player jumping? */
+	UFUNCTION(BlueprintPure, Category = "HMPlayerCharacter")
+	FORCEINLINE bool HasJumped() const { return m_bIsJumping; }
+
+	/** Is the player sprinting? */
+	UFUNCTION(BlueprintPure, Category = "HMPlayerCharacter")
+	FORCEINLINE bool IsSprinting() const
+	{
+		if (GetCharacterMovement() == nullptr)
+		{
+			return false;
+		}
+
+		// 0.1 = diagonal sprinting
+		// 0.8 = no diagonal sprinting
+		return m_bIsSprinting && !IsADS() && !IsStandingStill() && (FVector::DotProduct(GetVelocity().GetSafeNormal2D(), GetActorRotation().Vector()) > 0.8);
+	}
+
+	/** Is the player standing still? */
+	UFUNCTION(BlueprintPure, Category = "HMPlayerCharacter")
+	FORCEINLINE bool IsStandingStill() const { return GetVelocity().Size() == 0; }
+
+	/** Is the player walking? */
+	UFUNCTION(BlueprintPure, Category = "HMPlayerCharacter")
+	FORCEINLINE bool IsWalking() const
+	{
+		if (GetCharacterMovement() == nullptr)
+		{
+			return false;
+		}
+
+		return !IsSprinting() && !IsStandingStill();
+	}
+
+	/** Is the player aiming down sights? */
+	UFUNCTION(BlueprintPure, Category = "HMPlayerCharacter")
+	FORCEINLINE bool IsADS() const { return m_bIsADS; }
+
+	UFUNCTION(BlueprintPure, Category = "HMPlayerCharacter")
+	FRotator GetAimOffsets() const;
 protected:
 
 	void Attack();

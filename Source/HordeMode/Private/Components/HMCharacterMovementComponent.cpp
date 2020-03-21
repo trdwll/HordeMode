@@ -10,13 +10,13 @@ float UHMCharacterMovementComponent::GetMaxSpeed() const
 
 	if (AHMPlayerCharacter* const Owner = Cast<AHMPlayerCharacter>(PawnOwner))
 	{
-		if (Owner->bIsCrouched)
+		if (IsCrouching() || Owner->IsADS())
 		{
 			MaxSpeed *= 0.5f;
 		}
 		else if (Owner->IsSprinting())
 		{
-			MaxSpeed *= 3.0f;
+			MaxSpeed *= 1.5f;
 		}
 	}
 
