@@ -7,11 +7,13 @@
 #include "HMGameModeBase.generated.h"
 
 /**
- * 
+ *
  */
 UCLASS()
 class HORDEMODE_API AHMGameModeBase : public AGameModeBase
 {
 	GENERATED_BODY()
-	
+
+
+
 };

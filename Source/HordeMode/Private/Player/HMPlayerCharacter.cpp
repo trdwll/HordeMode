@@ -1,6 +1,9 @@
 // Copyright (c) 2020 Russ 'trdwll' Treadwell
 
 #include "Player/HMPlayerCharacter.h"
+
+#include "Net/UnrealNetwork.h"
+
 #include "Camera/CameraComponent.h"
 
 #include "Components/CapsuleComponent.h"
@@ -12,23 +15,18 @@
 
 #include "Components/HMCharacterMovementComponent.h"
 #include "Interfaces/Interactable.h"
+#include "Base/HMFirearmBase.h"
 #include "HordeMode.h"
-
-#include "Net/UnrealNetwork.h"
-
-#ifdef _DEBUG
-#include "Engine.h"
-#endif // _DEBUG
 
 AHMPlayerCharacter::AHMPlayerCharacter(const class FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UHMCharacterMovementComponent>(ACharacter::CharacterMovementComponentName)),
-	m_BaseTurnRate(45.0f), m_BaseLookUpRate(45.0f), m_MaxUseDistance(380.0f), m_bIsSprinting(false), m_Currency(1000)
+	m_BaseTurnRate(45.0f), m_BaseLookUpRate(45.0f), m_bIsSprinting(false), m_ADSFOV(65.0f), m_DefaultFOV(90.0f), m_MaxUseDistance(380.0f), m_WeaponAttachSocketName("WeaponSocket")
 {
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
 
 	bUseControllerRotationPitch = false;
-	bUseControllerRotationYaw = true;
+	bUseControllerRotationYaw = false; // If we set to true then the second player will be jittery when walking
 	bUseControllerRotationRoll = false;
 
 	// Configure character movement
@@ -53,11 +51,32 @@ AHMPlayerCharacter::AHMPlayerCharacter(const class FObjectInitializer& ObjectIni
 	m_FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
 }
 
+void AHMPlayerCharacter::BeginPlay()
+{
+	Super::BeginPlay();
+
+	m_DefaultFOV = m_FollowCamera->FieldOfView;
+
+	if (GetLocalRole() == ROLE_Authority)
+	{
+		// Spawn a default weapon
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+		m_CurrentFirearm = GetWorld()->SpawnActor<AHMFirearmBase>(m_StarterWeaponClass, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+		if (m_CurrentFirearm)
+		{
+			m_CurrentFirearm->SetOwner(this);
+			m_CurrentFirearm->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, m_WeaponAttachSocketName);
+		}
+	}
+}
+
 void AHMPlayerCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	DOREPLIFETIME(AHMPlayerCharacter, m_Currency);
+	DOREPLIFETIME(AHMPlayerCharacter, m_CurrentFirearm);
 	DOREPLIFETIME_CONDITION(AHMPlayerCharacter, m_bIsJumping, COND_SkipOwner);
 	DOREPLIFETIME_CONDITION(AHMPlayerCharacter, m_bIsSprinting, COND_SkipOwner);
 	DOREPLIFETIME_CONDITION(AHMPlayerCharacter, m_bIsADS, COND_SkipOwner);
@@ -81,6 +100,9 @@ void AHMPlayerCharacter::Tick(float DeltaTime)
 	{
 		SetSprinting(true);
 	}
+
+	const float NewFOV = m_bIsADS ? m_ADSFOV : m_DefaultFOV;
+	m_FollowCamera->SetFieldOfView(FMath::FInterpTo(m_FollowCamera->FieldOfView, NewFOV, DeltaTime, 20.0f));
 }
 
 void AHMPlayerCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
@@ -88,18 +110,19 @@ void AHMPlayerCharacter::SetupPlayerInputComponent(class UInputComponent* Player
 	// Set up gameplay key bindings
 	check(PlayerInputComponent);
 	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &AHMPlayerCharacter::StartJump);
-	// PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
 	PlayerInputComponent->BindAction("Crouch", IE_Pressed, this, &AHMPlayerCharacter::StartCrouch);
 	PlayerInputComponent->BindAction("Crouch", IE_Released, this, &AHMPlayerCharacter::StopCrouch);
 	PlayerInputComponent->BindAction("Sprint", IE_Pressed, this, &AHMPlayerCharacter::StartSprint);
 	PlayerInputComponent->BindAction("Sprint", IE_Released, this, &AHMPlayerCharacter::StopSprint);
 
 	PlayerInputComponent->BindAction("Interact", IE_Pressed, this, &AHMPlayerCharacter::Interact);
-	PlayerInputComponent->BindAction("Attack", IE_Pressed, this, &AHMPlayerCharacter::Attack);
+	PlayerInputComponent->BindAction("Reload", IE_Pressed, this, &AHMPlayerCharacter::StartReload);
+	PlayerInputComponent->BindAction("ToggleFireMode", IE_Pressed, this, &AHMPlayerCharacter::ToggleFireMode);
+	PlayerInputComponent->BindAction("Attack", IE_Pressed, this, &AHMPlayerCharacter::StartAttack);
+	PlayerInputComponent->BindAction("Attack", IE_Released, this, &AHMPlayerCharacter::StopAttack);
 
 	PlayerInputComponent->BindAction("ADS", IE_Pressed, this, &AHMPlayerCharacter::StartADS);
 	PlayerInputComponent->BindAction("ADS", IE_Released, this, &AHMPlayerCharacter::StopADS);
-
 
 	PlayerInputComponent->BindAxis("MoveForward", this, &AHMPlayerCharacter::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &AHMPlayerCharacter::MoveRight);
@@ -238,17 +261,54 @@ FRotator AHMPlayerCharacter::GetAimOffsets() const
 	return ActorToWorld().InverseTransformVectorNoScale(GetBaseAimRotation().Vector()).Rotation();
 }
 
-void AHMPlayerCharacter::Attack()
+void AHMPlayerCharacter::StartAttack()
 {
+	if (m_CurrentFirearm)
+	{
+		m_CurrentFirearm->StartFire();
+	}
+}
 
+void AHMPlayerCharacter::StopAttack()
+{
+	if (m_CurrentFirearm)
+	{
+		m_CurrentFirearm->StopFire();
+	}
+}
+
+void AHMPlayerCharacter::StartReload()
+{
+	if (m_CurrentFirearm)
+	{
+		m_CurrentFirearm->Reload();
+	}
+}
+
+void AHMPlayerCharacter::ToggleFireMode()
+{
+	if (m_CurrentFirearm && m_CurrentFirearm->GetFirearmStats().AllowedFireModes.Num() > 1)
+	{
+		FFirearmStats FirearmStats = m_CurrentFirearm->GetFirearmStats();
+
+		int32 index = FirearmStats.AllowedFireModes.Find(m_CurrentFirearm->GetFireMode());
+		int32 idx = 0;
+
+		if (FirearmStats.AllowedFireModes.IsValidIndex(index + 1))
+		{
+			idx = index + 1;
+		}
+
+		EFireMode NewMode = FirearmStats.AllowedFireModes[idx];
+
+		m_CurrentFirearm->ToggleFireMode(NewMode);
+	}
 }
 
 class AActor* AHMPlayerCharacter::GetActorInView()
 {
-	ACharacter* const Character = Cast<ACharacter>(this);
-
-	// If the character or the controller for the character are null then return a nullptr instead of running the rest of the method
-	if (Character == nullptr || Character->GetController() == nullptr)
+	// If the controller for the character is null then return a nullptr instead of running the rest of the method
+	if (GetController() == nullptr)
 	{
 		return nullptr;
 	}
@@ -256,7 +316,7 @@ class AActor* AHMPlayerCharacter::GetActorInView()
 	// Get the players view point (what they're looking at)
 	FVector CameraLocation;
 	FRotator CameraRotation;
-	Character->GetController()->GetPlayerViewPoint(CameraLocation, CameraRotation);
+	GetController()->GetPlayerViewPoint(CameraLocation, CameraRotation);
 
 	// Calculate the end location for the line trace
 	FVector EndLocation = CameraLocation + (CameraRotation.Vector() * m_MaxUseDistance);
@@ -287,18 +347,24 @@ void AHMPlayerCharacter::Interact()
 	}
 }
 
-void AHMPlayerCharacter::AddCurrency(int32 CurrencyToAdd)
+bool AHMPlayerCharacter::IsFirearmLocationAvailable(EFirearmAttachLocation Location)
 {
-	if (GetLocalRole() < ROLE_Authority)
+	return nullptr == m_FirearmInventory.FindByPredicate([Location](AHMFirearmBase* Firearm)
 	{
-		Server_AddCurrency(CurrencyToAdd);
-		return;
-	}
-
-	m_Currency += CurrencyToAdd;
-
-	OnCharacterCurrencyChange.Broadcast(m_Currency);
+		return Firearm->GetAttachLocation() == Location;
+	});
 }
 
-bool AHMPlayerCharacter::Server_AddCurrency_Validate(int32 CurrencyToAdd) { return true; }
-void AHMPlayerCharacter::Server_AddCurrency_Implementation(int32 CurrencyToAdd) { AddCurrency(CurrencyToAdd); }
+void AHMPlayerCharacter::AddFirearm(AHMFirearmBase* NewFirearm)
+{
+	if (IsFirearmLocationAvailable(NewFirearm->GetAttachLocation()))
+	{
+		NewFirearm->SetOwner(this);
+		NewFirearm->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, m_WeaponAttachSocketName);
+
+		m_CurrentFirearm = NewFirearm;
+		// m_Inventory.Add(NewFirearm);
+		PRINT("CALLED");
+	}
+}
+

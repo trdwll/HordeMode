@@ -4,6 +4,12 @@
 #include "Components/HMCharacterMovementComponent.h"
 #include "Player/HMPlayerCharacter.h"
 
+UHMCharacterMovementComponent::UHMCharacterMovementComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
+{
+	bUseControllerDesiredRotation = true;
+	bOrientRotationToMovement = false;
+}
+
 float UHMCharacterMovementComponent::GetMaxSpeed() const
 {
 	float MaxSpeed = Super::GetMaxSpeed();

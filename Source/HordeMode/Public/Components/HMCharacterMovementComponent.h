@@ -15,6 +15,7 @@ class HORDEMODE_API UHMCharacterMovementComponent : public UCharacterMovementCom
 	GENERATED_BODY()
 
 public:
+	UHMCharacterMovementComponent(const FObjectInitializer& ObjectInitializer);
 	virtual float GetMaxSpeed() const override;
 
 };

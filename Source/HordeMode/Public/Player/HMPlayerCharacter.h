@@ -4,9 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "Base/HMCharacterBase.h"
+#include "HMCommon.h"
 #include "HMPlayerCharacter.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCharacterCurrencyChangeDelegate, int32, NewCurrency);
 
 /**
  * The class used for players
@@ -26,6 +26,7 @@ class HORDEMODE_API AHMPlayerCharacter : public AHMCharacterBase
 public:
 	AHMPlayerCharacter(const class FObjectInitializer& ObjectInitializer);
 
+	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaTime) override;
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
@@ -120,6 +121,9 @@ private:
 	UFUNCTION(Server, Unreliable, WithValidation)
 	void Server_SetADS(bool bADS);
 
+	float m_ADSFOV;
+	float m_DefaultFOV;
+
 public:
 
 	/** Is the player jumping? */
@@ -162,9 +166,15 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "HMPlayerCharacter")
 	FRotator GetAimOffsets() const;
+
 protected:
 
-	void Attack();
+	void StartAttack();
+	void StopAttack();
+
+	void StartReload();
+
+	void ToggleFireMode();
 
 private:
 
@@ -180,42 +190,27 @@ private:
     /** The distance that a character can interact with an actor. */
 	float m_MaxUseDistance;
 
-	/** The amount of current a player has. */
+	/** The inventory for the character. -- For now we're just going to store the firearms (max 4) */
 	UPROPERTY(Replicated)
-	int32 m_Currency;
+	TArray<AHMFirearmBase*> m_FirearmInventory;
 
 public:
 
-	/** Reset the players stats. */
-	UFUNCTION(BlueprintCallable, Category = "HMPlayerCharacter")
-	void ResetPlayer() {}
+	bool IsFirearmLocationAvailable(EFirearmAttachLocation Location);
 
-	/** Get the amount of currency a player has. */
+	UPROPERTY(Replicated)
+	class AHMFirearmBase* m_CurrentFirearm;
+
+	class AHMFirearmBase* m_PreviousFirearm;
+
 	UFUNCTION(BlueprintPure, Category = "HMPlayerCharacter")
-	FORCEINLINE int32 GetCurrency() const { return m_Currency; }
+	class AHMFirearmBase* GetCurrentFirearm() const { return m_CurrentFirearm; }
 
-	/**
-	 * Add currency to the player
-	 *
-	 * @param int32 CurrencyToAdd The amount of currency to add to the player
-	 */
-	UFUNCTION(BlueprintCallable, Category = "HMPlayerCharacter")
-	void AddCurrency(int32 CurrencyToAdd);
+	UPROPERTY(EditDefaultsOnly, Category = "HMPlayerCharacter", meta = (DisplayName = "Start Inventory"))
+	TSubclassOf<class AHMFirearmBase> m_StarterWeaponClass;
 
-	/** --- Server RPC methods --- */
-private:
+	UPROPERTY(VisibleDefaultsOnly, Category = "HMPlayerCharacter", meta = (DisplayName = "Weapon Attach Socket"))
+	FName m_WeaponAttachSocketName;
 
-	/**
-	 * Server: Add currency to the player
-	 *
-	 * @param int32 CurrencyToAdd The amount of currency to add to the player
-	 */
-	UFUNCTION(Server, Unreliable, WithValidation)
-	void Server_AddCurrency(int32 CurrencyToAdd);
-
-protected:
-
-	UPROPERTY(BlueprintAssignable)
-	FOnCharacterCurrencyChangeDelegate OnCharacterCurrencyChange;
+	void AddFirearm(AHMFirearmBase* NewFirearm);
 };
-

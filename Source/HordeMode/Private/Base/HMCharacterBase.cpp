@@ -2,25 +2,41 @@
 
 
 #include "Base/HMCharacterBase.h"
-#include "Components/HMHealthComponent.h"
+#include "Net/UnrealNetwork.h"
+#include "HordeMode.h"
 
-// Sets default values
 AHMCharacterBase::AHMCharacterBase(const class FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
+	: Super(ObjectInitializer), m_Health(100.0f), m_MaxHealth(100.0f)
 {
- 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
-	m_HealthComponent = CreateDefaultSubobject<UHMHealthComponent>(TEXT("HMHealthComponent"));
+	SetReplicates(true);
 }
 
-// Called when the game starts or when spawned
+void AHMCharacterBase::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(AHMCharacterBase, m_Health);
+}
+
+float AHMCharacterBase::TakeDamage(float Damage, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+	const float ActualDamage = Super::TakeDamage(Damage, DamageEvent, EventInstigator, DamageCauser);
+
+	PRINT("TOOK DAMAGE - " + FString::SanitizeFloat(ActualDamage));
+
+	// TODO: clamp this later - just for testing right now
+	m_Health -= ActualDamage;
+
+	return ActualDamage;
+}
+
 void AHMCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
 }
 
-// Called every frame
 void AHMCharacterBase::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
