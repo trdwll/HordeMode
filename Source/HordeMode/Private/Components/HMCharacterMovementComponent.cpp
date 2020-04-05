@@ -8,6 +8,12 @@ UHMCharacterMovementComponent::UHMCharacterMovementComponent(const FObjectInitia
 {
 	bUseControllerDesiredRotation = true;
 	bOrientRotationToMovement = false;
+
+	GetNavAgentPropertiesRef().bCanCrouch = true;
+
+	RotationRate = FRotator(0.0f, 540.0f, 0.0f);
+	JumpZVelocity = 600.f;
+	AirControl = 0.2f;
 }
 
 float UHMCharacterMovementComponent::GetMaxSpeed() const
