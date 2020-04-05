@@ -233,3 +233,12 @@ struct FFirearmStats : public FTableRowBase
 	float CalculateHRecoil(float Min, float Max) { return FMath::FRandRange(Min, Max); }
 	float CalculateVRecoil(float Min, float Max) { return FMath::FRandRange(Min, Max) * -1.0f; }
 };
+
+
+ UENUM(BlueprintType)
+ enum class ETeamType : uint8
+ {
+ 	Player		UMETA(DisplayName = "Player"),
+ 	Spectator	UMETA(DisplayName = "Spectator"),
+ 	Enemy		UMETA(DisplayName = "Enemy")
+ };

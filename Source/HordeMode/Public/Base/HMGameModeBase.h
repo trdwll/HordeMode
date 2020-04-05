@@ -16,4 +16,6 @@ class HORDEMODE_API AHMGameModeBase : public AGameModeBase
 
 
 
+protected:
+	virtual FString InitNewPlayer(APlayerController* NewPlayerController, const FUniqueNetIdRepl& UniqueId, const FString& Options, const FString& Portal = TEXT("")) override;
 };

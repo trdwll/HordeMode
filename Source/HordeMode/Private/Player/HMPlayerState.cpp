@@ -2,10 +2,13 @@
 
 
 #include "Player/HMPlayerState.h"
+#include "HMCommon.h"
+#include "HordeMode.h"
+
 #include "Net/UnrealNetwork.h"
 
 AHMPlayerState::AHMPlayerState()
-	: m_Currency(1000), m_Kills(0), m_Deaths(0)
+	: m_TeamType(ETeamType::Enemy), m_Currency(1000), m_Kills(0), m_Deaths(0)
 {
 
 }
@@ -14,6 +17,7 @@ void AHMPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
+	DOREPLIFETIME(AHMPlayerState, m_TeamType);
 	DOREPLIFETIME(AHMPlayerState, m_Currency);
 	DOREPLIFETIME(AHMPlayerState, m_Kills);
 	DOREPLIFETIME(AHMPlayerState, m_Deaths);

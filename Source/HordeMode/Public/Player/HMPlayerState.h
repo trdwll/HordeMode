@@ -3,6 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#include "HMCommon.h"
+
 #include "GameFramework/PlayerState.h"
 #include "HMPlayerState.generated.h"
 
@@ -29,6 +32,9 @@ public:
 private:
 
 	UPROPERTY(Replicated)
+	ETeamType m_TeamType;
+
+	UPROPERTY(Replicated)
 	int32 m_Currency;
 
 	/** The number of kills that the player has. */
@@ -44,6 +50,8 @@ private:
 	//int32 m_Downs;
 
 public:
+
+	FORCEINLINE void ChangeTeamType(ETeamType NewTeamType) { m_TeamType = NewTeamType; }
 
 	/**
 	 * Add a kill to the playerstate.
