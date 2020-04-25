@@ -58,11 +58,11 @@ private:
 	float m_CurrentHorizontalRecoil;
 	float m_CurrentVerticalRecoil;
 
-	float m_HorizontalKick;
-	float m_VerticalKick;
-
 	float m_TargetHorizontalRecoil;
 	float m_TargetVerticalRecoil;
+
+	/** The time that it takes to reset the recoil to 0. */
+	float m_TimeToResetRecoil;
 
 	FTimerHandle m_TimerHandle_TimeBetweenShots;
 

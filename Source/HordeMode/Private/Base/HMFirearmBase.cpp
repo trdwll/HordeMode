@@ -39,11 +39,8 @@ void AHMFirearmBase::BeginPlay()
 	m_CurrentAmmoInMag = m_FirearmStats.MagCapacity;
 	m_CurrentFireMode = m_FirearmStats.AllowedFireModes[0];
 
-	m_HorizontalKick = m_FirearmStats.GetHRecoil();
-	m_VerticalKick = m_FirearmStats.GetVRecoil();
-
-	m_TargetHorizontalRecoil = m_HorizontalKick;
-	m_TargetVerticalRecoil = m_VerticalKick;
+	m_TargetHorizontalRecoil = m_FirearmStats.GetHRecoil();
+	m_TargetVerticalRecoil = m_FirearmStats.GetVRecoil();
 
 #ifdef _DEBUG
 	if (m_bUnlimitedAmmo)
@@ -276,16 +273,18 @@ void AHMFirearmBase::ToggleFireMode(EFireMode NewFireMode)
 
 void AHMFirearmBase::HandleRecoil()
 {
-	float Horizontal = UKismetMathLibrary::FInterpTo(m_CurrentHorizontalRecoil, m_HorizontalKick, UGameplayStatics::GetWorldDeltaSeconds(GetWorld()), 20.0f);
-	float Vertical = UKismetMathLibrary::FInterpTo(m_CurrentVerticalRecoil, m_VerticalKick, UGameplayStatics::GetWorldDeltaSeconds(GetWorld()), 20.0f);
+	float Horizontal = UKismetMathLibrary::FInterpTo(m_CurrentHorizontalRecoil, m_TargetHorizontalRecoil, UGameplayStatics::GetWorldDeltaSeconds(GetWorld()), 20.0f);
+	float Vertical = UKismetMathLibrary::FInterpTo(m_CurrentVerticalRecoil, m_TargetVerticalRecoil, UGameplayStatics::GetWorldDeltaSeconds(GetWorld()), 20.0f);
 
-	if (Horizontal != 0.0f || Vertical != 0.0f)
+	if (Horizontal - m_CurrentHorizontalRecoil != 0.0f || Vertical - m_CurrentVerticalRecoil != 0.0f)
 	{
 		if (AHMPlayerCharacter* const Player = Cast<AHMPlayerCharacter>(GetOwner()))
 		{
 			if (AHMPlayerController* const PlayerController = Cast<AHMPlayerController>(Player->GetController()))
 			{
-				PlayerController->RegisterRecoil(Horizontal, Vertical);
+				PlayerController->RegisterRecoil(Horizontal - m_CurrentHorizontalRecoil, Vertical - m_CurrentVerticalRecoil);
+				m_CurrentHorizontalRecoil = Horizontal;
+				m_CurrentVerticalRecoil = Vertical;
 			}
 		}
 	}

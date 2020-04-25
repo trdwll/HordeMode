@@ -11,5 +11,6 @@ void AHMPlayerController::RegisterRecoil(float Horizontal, float Vertical)
 
 void AHMPlayerController::ResetRecoil()
 {
-
+	AddYawInput(0.0f);
+	AddPitchInput(0.0f);
 }
