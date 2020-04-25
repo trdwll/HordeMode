@@ -44,5 +44,20 @@ void AHMPlayerState::AddCurrency(int32 CurrencyToAdd)
 	OnCharacterCurrencyChange.Broadcast(m_Currency);
 }
 
+void AHMPlayerState::SetCurrency(int32 NewCurrency)
+{
+	if (GetLocalRole() < ROLE_Authority)
+	{
+		Server_SetCurrency(NewCurrency);
+	}
+
+	m_Currency = FMath::Clamp(m_Currency, 0, NewCurrency);
+
+	OnCharacterCurrencyChange.Broadcast(m_Currency);
+}
+
 bool AHMPlayerState::Server_AddCurrency_Validate(int32 CurrencyToAdd) { return true; }
 void AHMPlayerState::Server_AddCurrency_Implementation(int32 CurrencyToAdd) { AddCurrency(CurrencyToAdd); }
+
+bool AHMPlayerState::Server_SetCurrency_Validate(int32 NewCurrency) { return true;}
+void AHMPlayerState::Server_SetCurrency_Implementation(int32 NewCurrency) { SetCurrency(NewCurrency); }

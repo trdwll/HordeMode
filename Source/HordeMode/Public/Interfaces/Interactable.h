@@ -23,5 +23,5 @@ class HORDEMODE_API IInteractable
 
 public:
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Interactable Interface")
-    void Interact();
+    void Interact(class AHMPlayerCharacter* Player);
 };

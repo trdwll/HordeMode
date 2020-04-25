@@ -340,7 +340,7 @@ void AHMPlayerCharacter::Interact()
 		// If the actor that you're looking at implements the interface InteractInterface
 		if (actor->GetClass()->ImplementsInterface(UInteractable::StaticClass()))
 		{
-			IInteractable::Execute_Interact(actor);
+			IInteractable::Execute_Interact(actor, this);
 		}
 	}
 }

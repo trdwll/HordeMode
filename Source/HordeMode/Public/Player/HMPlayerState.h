@@ -90,6 +90,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "HMPlayerState")
 	void AddCurrency(int32 CurrencyToAdd);
 
+	UFUNCTION(BlueprintCallable, Category = "HMPlayerState")
+	void SetCurrency(int32 NewCurrency);
+
 	/** --- Server RPC methods --- */
 private:
 
@@ -100,6 +103,9 @@ private:
 	 */
 	UFUNCTION(Server, Unreliable, WithValidation)
 	void Server_AddCurrency(int32 CurrencyToAdd);
+
+	UFUNCTION(Server, Unreliable, WithValidation)
+	void Server_SetCurrency(int32 NewCurrency);
 
 protected:
 
