@@ -10,7 +10,7 @@
 AHMPlayerState::AHMPlayerState()
 	: m_TeamType(ETeamType::Enemy), m_Currency(1000), m_Kills(0), m_Deaths(0)
 {
-
+	bIsABot = true;
 }
 
 void AHMPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -37,7 +37,6 @@ void AHMPlayerState::AddCurrency(int32 CurrencyToAdd)
 	if (GetLocalRole() < ROLE_Authority)
 	{
 		Server_AddCurrency(CurrencyToAdd);
-		return;
 	}
 
 	m_Currency += CurrencyToAdd;

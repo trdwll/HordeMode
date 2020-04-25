@@ -1,9 +1,9 @@
 // Copyright (c) 2020 Russ 'trdwll' Treadwell
 
-
 #include "Base/HMFirearmBase.h"
 #include "Player/HMPlayerCharacter.h"
 #include "Player/HMPlayerController.h"
+#include "Player/HMPlayerState.h"
 #include "HordeMode.h"
 
 #include "Net/UnrealNetwork.h"
@@ -15,9 +15,8 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Particles/ParticleSystemComponent.h"
 
-
 AHMFirearmBase::AHMFirearmBase() : m_FirearmID("Default"), m_CurrentAttachLocation(EFirearmAttachLocation::Hands), m_CurrentFireMode(EFireMode::FullAuto), m_FirearmStatus(EFirearmStatus::Idle),
-	m_CurrentAmmo(0), m_CurrentAmmoInMag(0)
+m_CurrentAmmo(0), m_CurrentAmmoInMag(0)
 {
 	PrimaryActorTick.bCanEverTick = true;
 
@@ -40,16 +39,19 @@ void AHMFirearmBase::BeginPlay()
 	m_CurrentAmmoInMag = m_FirearmStats.MagCapacity;
 	m_CurrentFireMode = m_FirearmStats.AllowedFireModes[0];
 
-	m_TargetHorizontalRecoil = m_FirearmStats.CalculateHRecoil();
-	m_TargetVerticalRecoil = m_FirearmStats.CalculateVRecoil();
+	m_HorizontalKick = m_FirearmStats.GetHRecoil();
+	m_VerticalKick = m_FirearmStats.GetVRecoil();
 
-	#ifdef _DEBUG
+	m_TargetHorizontalRecoil = m_HorizontalKick;
+	m_TargetVerticalRecoil = m_VerticalKick;
+
+#ifdef _DEBUG
 	if (m_bUnlimitedAmmo)
 	{
 		m_CurrentAmmo = 9999;
 		m_CurrentAmmoInMag = 9999;
 	}
-	#endif // _DEBUG
+#endif // _DEBUG
 
 	PRINT("Firearm Selected : " + m_FirearmStats.Title + " : " + FString::SanitizeFloat(m_TimeBetweenShots));
 }
@@ -58,7 +60,7 @@ void AHMFirearmBase::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (IsFiring() && HasAmmoInMag())
+	if (IsFiring() && HasAmmoInMag() && m_FirearmStats.HasRecoil())
 	{
 		HandleRecoil();
 	}
@@ -98,7 +100,8 @@ void AHMFirearmBase::Fire()
 	{
 		FVector EyeLocation;
 		FRotator EyeRotation;
-		if (AHMPlayerCharacter* const Character = Cast<AHMPlayerCharacter>(MyOwner))
+		AHMPlayerCharacter* const Character = Cast<AHMPlayerCharacter>(MyOwner);
+		if (Character)
 		{
 			Character->GetController()->GetPlayerViewPoint(EyeLocation, EyeRotation);
 		}
@@ -127,6 +130,7 @@ void AHMFirearmBase::Fire()
 			SurfaceType = UPhysicalMaterial::DetermineSurfaceType(Hit.PhysMaterial.Get());
 
 			float ActualDamage = m_FirearmStats.HitBaseDamage;
+			int32 Currency = 25;
 
 			switch (SurfaceType)
 			{
@@ -135,6 +139,7 @@ void AHMFirearmBase::Fire()
 				break;
 			case SURFACE_ZOMBIEHEAD:
 				ActualDamage = m_FirearmStats.HitHeadshotDamage;
+				Currency = 100;
 				break;
 			case SURFACE_ZOMBIEBODY:
 				ActualDamage = m_FirearmStats.HitBodyDamage;
@@ -145,7 +150,20 @@ void AHMFirearmBase::Fire()
 			default:
 			case SURFACE_ZOMBIEDEFAULT:
 				ActualDamage = m_FirearmStats.HitBaseDamage;
+				Currency = 10;
 				break;
+			}
+
+			if (GetLocalRole() == ROLE_Authority)
+			{
+				AHMCharacterBase* const HitActor = Cast<AHMCharacterBase>(Hit.GetActor());
+				if (HitActor != nullptr && HitActor->IsAlive() && HitActor->GetName().Contains("BP_ZombieCharacter"))
+				{
+					if (AHMPlayerState* const PS = Cast<AHMPlayerState>(Character->GetPlayerState()))
+					{
+						PS->AddCurrency(Currency);
+					}
+				}
 			}
 
 			UGameplayStatics::ApplyPointDamage(Hit.GetActor(), ActualDamage, ShotDirection, Hit, MyOwner->GetInstigatorController(), MyOwner, nullptr);
@@ -155,9 +173,9 @@ void AHMFirearmBase::Fire()
 			TracerEndPoint = Hit.ImpactPoint;
 		}
 
-		#ifdef _DEBUGDRAW
+#ifdef _DEBUGDRAW
 		DrawDebugLine(GetWorld(), EyeLocation, TraceEnd, FColor::White, false, 1.0f, 0, 1.0f);
-		#endif // _DEBUGDRAW
+#endif // _DEBUGDRAW
 
 		--m_CurrentAmmoInMag;
 		m_OnFirearmAmmoChanged.Broadcast(this, m_CurrentAmmoInMag, m_CurrentAmmo);
@@ -173,7 +191,6 @@ void AHMFirearmBase::Fire()
 		m_LastFireTime = GetWorld()->TimeSeconds;
 	}
 
-
 	// Fixes the issue where if in semi auto mode the recoil keeps going
 	if (m_CurrentFireMode == EFireMode::SemiAuto && m_ShotCount == 1)
 	{
@@ -181,13 +198,11 @@ void AHMFirearmBase::Fire()
 	}
 }
 
-
 void AHMFirearmBase::OnRep_HitScanTrace()
 {
 	PlayFireEffects(m_HitScanTrace.TraceTo);
 	PlayImpactEffects(m_HitScanTrace.SurfaceType, m_HitScanTrace.TraceTo);
 }
-
 
 bool AHMFirearmBase::Server_Fire_Validate() { return true; }
 void AHMFirearmBase::Server_Fire_Implementation() { Fire(); }
@@ -205,10 +220,10 @@ void AHMFirearmBase::StartFire()
 	case EFireMode::ThreeBurst:
 	case EFireMode::FullAuto:
 		GetWorldTimerManager().SetTimer(m_TimerHandle_TimeBetweenShots, this, &AHMFirearmBase::Fire, m_TimeBetweenShots, true, FirstDelay);
-	break;
+		break;
 	case EFireMode::SemiAuto:
 		GetWorldTimerManager().SetTimer(m_TimerHandle_TimeBetweenShots, this, &AHMFirearmBase::Fire, m_TimeBetweenShots, false, FirstDelay);
-	break;
+		break;
 	}
 }
 
@@ -261,20 +276,16 @@ void AHMFirearmBase::ToggleFireMode(EFireMode NewFireMode)
 
 void AHMFirearmBase::HandleRecoil()
 {
-	// TODO: Fix recoil (it's pulling to the bottom right constantly)
-	float t = UKismetMathLibrary::FInterpTo(m_CurrentHorizontalRecoil, m_TargetHorizontalRecoil, UGameplayStatics::GetWorldDeltaSeconds(GetWorld()), 20.0f);
-	float t2 = UKismetMathLibrary::FInterpTo(m_CurrentVerticalRecoil, m_TargetVerticalRecoil, UGameplayStatics::GetWorldDeltaSeconds(GetWorld()), 20.0f);
+	float Horizontal = UKismetMathLibrary::FInterpTo(m_CurrentHorizontalRecoil, m_HorizontalKick, UGameplayStatics::GetWorldDeltaSeconds(GetWorld()), 20.0f);
+	float Vertical = UKismetMathLibrary::FInterpTo(m_CurrentVerticalRecoil, m_VerticalKick, UGameplayStatics::GetWorldDeltaSeconds(GetWorld()), 20.0f);
 
-	if (t - m_CurrentHorizontalRecoil != 0.0f || t2 - m_CurrentVerticalRecoil != 0.0f)
+	if (Horizontal != 0.0f || Vertical != 0.0f)
 	{
-		m_CurrentHorizontalRecoil = t - m_CurrentHorizontalRecoil;
-		m_CurrentVerticalRecoil = t - m_CurrentVerticalRecoil;
-
 		if (AHMPlayerCharacter* const Player = Cast<AHMPlayerCharacter>(GetOwner()))
 		{
 			if (AHMPlayerController* const PlayerController = Cast<AHMPlayerController>(Player->GetController()))
 			{
-				PlayerController->RegisterRecoil(m_CurrentHorizontalRecoil, m_CurrentVerticalRecoil);
+				PlayerController->RegisterRecoil(Horizontal, Vertical);
 			}
 		}
 	}
@@ -325,7 +336,6 @@ void AHMFirearmBase::PlayFireEffects(const FVector& TraceEnd)
 		}
 	}
 }
-
 
 void AHMFirearmBase::PlayImpactEffects(EPhysicalSurface SurfaceType, const FVector& ImpactPoint)
 {

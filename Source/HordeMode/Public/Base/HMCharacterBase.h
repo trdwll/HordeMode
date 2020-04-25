@@ -23,6 +23,14 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 
 	virtual float TakeDamage(float Damage, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
+
+private:
+
+	void Die(float Damage, AController* EventInstigator, AActor* DamageCauser);
+
+	UFUNCTION(NetMulticast, Unreliable)
+	void Multi_Ragdoll();
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaTime) override;
@@ -33,6 +41,9 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category = "HMCharacterBase", meta = (DisplayName = "Max Health"))
 	float m_MaxHealth;
+
+	UPROPERTY(EditDefaultsOnly, Category = "HMCharacterBase", meta = (DisplayName = "Death Anims"))
+	TArray<class UAnimMontage*> m_DeathAnims;
 
 public:
 	/** Get the characters health */

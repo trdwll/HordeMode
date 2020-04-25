@@ -130,19 +130,11 @@ public:
 	UFUNCTION(BlueprintPure, Category = "HMPlayerCharacter")
 	FORCEINLINE bool HasJumped() const { return m_bIsJumping; }
 
+	// 0.1 = diagonal sprinting
+	// 0.8 = no diagonal sprinting
 	/** Is the player sprinting? */
 	UFUNCTION(BlueprintPure, Category = "HMPlayerCharacter")
-	FORCEINLINE bool IsSprinting() const
-	{
-		if (GetCharacterMovement() == nullptr)
-		{
-			return false;
-		}
-
-		// 0.1 = diagonal sprinting
-		// 0.8 = no diagonal sprinting
-		return m_bIsSprinting && !IsADS() && !IsStandingStill() && (FVector::DotProduct(GetVelocity().GetSafeNormal2D(), GetActorRotation().Vector()) > 0.8);
-	}
+	FORCEINLINE bool IsSprinting() const { return GetCharacterMovement() == nullptr ? false : m_bIsSprinting && !IsADS() && !IsStandingStill() && (FVector::DotProduct(GetVelocity().GetSafeNormal2D(), GetActorRotation().Vector()) > 0.8); }
 
 	/** Is the player standing still? */
 	UFUNCTION(BlueprintPure, Category = "HMPlayerCharacter")
@@ -150,15 +142,7 @@ public:
 
 	/** Is the player walking? */
 	UFUNCTION(BlueprintPure, Category = "HMPlayerCharacter")
-	FORCEINLINE bool IsWalking() const
-	{
-		if (GetCharacterMovement() == nullptr)
-		{
-			return false;
-		}
-
-		return !IsSprinting() && !IsStandingStill();
-	}
+	FORCEINLINE bool IsWalking() const { return GetCharacterMovement() == nullptr ? false : !IsSprinting() && !IsStandingStill(); }
 
 	/** Is the player aiming down sights? */
 	UFUNCTION(BlueprintPure, Category = "HMPlayerCharacter")

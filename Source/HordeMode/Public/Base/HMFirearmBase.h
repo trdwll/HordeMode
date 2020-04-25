@@ -58,6 +58,9 @@ private:
 	float m_CurrentHorizontalRecoil;
 	float m_CurrentVerticalRecoil;
 
+	float m_HorizontalKick;
+	float m_VerticalKick;
+
 	float m_TargetHorizontalRecoil;
 	float m_TargetVerticalRecoil;
 

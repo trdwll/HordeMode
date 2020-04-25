@@ -44,6 +44,15 @@ enum class EFirearmStatus : uint8
 	Jammed			UMETA(DisplayName = "Jammed")
 };
 
+UENUM()
+enum class EFirearmType : uint8
+{
+	Pistol		UMETA(DisplayName = "Pistol"),
+	Rifle		UMETA(DisplayName = "Rifle"),
+	Shotgun		UMETA(DisplayName = "Shotgun"),
+	Other		UMETA(DisplayName = "Other") // For rocket launchers etc
+};
+
 
 /** Effects */
 USTRUCT(BlueprintType)
@@ -153,6 +162,16 @@ struct FFirearmStats : public FTableRowBase
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	float ShotsPerMinute;
 
+	/** How many bullets should be shot at a time? */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	uint8 ShotCount;
+
+	/** What kind of firearm is this? */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	EFirearmType FirearmType;
+
+	/// Damage
+
 	/** Headshot damage amount */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	float HitHeadshotDamage;
@@ -169,6 +188,8 @@ struct FFirearmStats : public FTableRowBase
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	float HitBaseDamage;
 
+	/// Accuracy
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	FVector2D HorizontalRecoil;
 
@@ -181,11 +202,10 @@ struct FFirearmStats : public FTableRowBase
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	FVector2D VerticalSpread;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	float ReloadSpeed;
+	///
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	bool bHasProjectile;
+	float ReloadSpeed;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	TSubclassOf<AActor> ProjectileClass;
@@ -212,7 +232,7 @@ struct FFirearmStats : public FTableRowBase
 	FFirearmAnims AnimFireMode;
 
 	FFirearmStats() :
-		Title("NoTitle"), Description("NoDescription"), AttachLocation(EFirearmAttachLocation::Right_Back), MagCapacity(30), MagCount(8), ShotsPerMinute(600),
+		Title("NoTitle"), Description("NoDescription"), AttachLocation(EFirearmAttachLocation::Right_Back), MagCapacity(30), MagCount(8), ShotsPerMinute(600), ShotCount(1),
 		HitHeadshotDamage(80.0f), HitBodyDamage(40.0f), HitLimbDamage(20.0f), HitBaseDamage(30.0f),
 		ReloadSpeed(3.0f),
 		MuzzleSocketName("MuzzleFlashSocket"), TracerTargetName("Target")
@@ -228,10 +248,14 @@ struct FFirearmStats : public FTableRowBase
 
 		return "N/A";
 	}
-	float CalculateHRecoil() { return FMath::FRandRange(HorizontalRecoil.X, HorizontalRecoil.Y); }
-	float CalculateVRecoil() { return FMath::FRandRange(VerticalRecoil.X, VerticalRecoil.Y) * -1.0f; }
-	float CalculateHRecoil(float Min, float Max) { return FMath::FRandRange(Min, Max); }
-	float CalculateVRecoil(float Min, float Max) { return FMath::FRandRange(Min, Max) * -1.0f; }
+
+	float GetHRecoil() const { return FMath::FRandRange(HorizontalRecoil.X, HorizontalRecoil.Y); }
+	float GetVRecoil() const { return FMath::FRandRange(VerticalRecoil.X, VerticalRecoil.Y) * -1.0f; }
+	float GetHRecoil(float Min, float Max) const { return FMath::FRandRange(Min, Max); }
+	float GetVRecoil(float Min, float Max) const { return FMath::FRandRange(Min, Max) * -1.0f; }
+
+	bool HasRecoil() const { return GetHRecoil() != 0.0f || GetVRecoil() != 0.0f; }
+	bool HasProjectile() const { return ProjectileClass == nullptr; }
 };
 
 

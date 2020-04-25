@@ -52,6 +52,9 @@ private:
 public:
 
 	FORCEINLINE void ChangeTeamType(ETeamType NewTeamType) { m_TeamType = NewTeamType; }
+	FORCEINLINE ETeamType GetTeamType() const { return m_TeamType; }
+
+	static bool IsFriendly(AHMPlayerState* A, AHMPlayerState* B) { return A == nullptr || B == nullptr || A->GetTeamType() == B->GetTeamType(); }
 
 	/**
 	 * Add a kill to the playerstate.
