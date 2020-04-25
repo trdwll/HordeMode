@@ -17,7 +17,7 @@ struct FHitScanTrace
 };
 
 UENUM()
-enum class EFirearmAttachLocation : uint8
+enum class EWeaponAttachLocation : uint8
 {
 	Hands			UMETA(DisplayName = "Hands (Currently Equipped)"),
 	Right_Back		UMETA(DisplayName = "Right Back"),
@@ -35,7 +35,7 @@ enum class EFireMode : uint8
 };
 
 UENUM()
-enum class EFirearmStatus : uint8
+enum class EWeaponStatus : uint8
 {
 	Idle			UMETA(DisplayName = "Idle (equipped or 'holstered')"),
 	Firing			UMETA(DisplayName = "Firing"),
@@ -56,7 +56,7 @@ enum class EFirearmType : uint8
 
 /** Effects */
 USTRUCT(BlueprintType)
-struct FFirearmVisuals
+struct FWeaponVisuals
 {
 	GENERATED_BODY()
 
@@ -75,14 +75,14 @@ struct FFirearmVisuals
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	TSubclassOf<class UCameraShake> FireCamShake;
 
-	FFirearmVisuals() :
+	FWeaponVisuals() :
 		MuzzleEffect(nullptr), DefaultImpactEffect(nullptr), FleshImpactEffect(nullptr), TracerEffect(nullptr), FireCamShake(nullptr)
 	{}
 };
 
 /** Sounds */
 USTRUCT(BlueprintType)
-struct FFirearmSounds
+struct FWeaponSounds
 {
 	GENERATED_BODY()
 
@@ -110,14 +110,14 @@ struct FFirearmSounds
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	class USoundCue* OutOfAmmo;
 
-	FFirearmSounds() :
+	FWeaponSounds() :
 		Fire(nullptr), Reload(nullptr), Jammed(nullptr), Unjammed(nullptr), Equip(nullptr), Unequipped(nullptr), ToggleFireMode(nullptr), OutOfAmmo(nullptr)
 	{}
 };
 
 /** Animations */
 USTRUCT(BlueprintType)
-struct FFirearmAnims
+struct FWeaponAnims
 {
 	GENERATED_BODY()
 
@@ -130,13 +130,20 @@ struct FFirearmAnims
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	class UAnimMontage* Prone;
 
-	FFirearmAnims() :
+	FWeaponAnims() :
 		Standing(nullptr), Crouching(nullptr), Prone(nullptr)
 	{}
 };
 
+// TODO: Add data for projectiles
 USTRUCT(BlueprintType)
-struct FFirearmStats : public FTableRowBase
+struct FProjectileData
+{
+	GENERATED_BODY()
+};
+
+USTRUCT(BlueprintType)
+struct FWeaponInfo
 {
 	GENERATED_BODY()
 
@@ -148,27 +155,13 @@ struct FFirearmStats : public FTableRowBase
 
 	// TODO: Expand this later to support multiple locations (so a primary can be on the right or left back etc)
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	EFirearmAttachLocation AttachLocation;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	TArray<EFireMode> AllowedFireModes;
+	EWeaponAttachLocation AttachLocation;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	uint8 MagCapacity;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	uint8 MagCount;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	float ShotsPerMinute;
-
-	/** How many bullets should be shot at a time? */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	uint8 ShotCount;
-
-	/** What kind of firearm is this? */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	EFirearmType FirearmType;
 
 	/// Damage
 
@@ -187,6 +180,50 @@ struct FFirearmStats : public FTableRowBase
 	/** Default damage amount */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	float HitBaseDamage;
+
+	FWeaponInfo() :
+		Title("N/A"), Description("No Description"), AttachLocation(EWeaponAttachLocation::Right_Back), MagCapacity(30), MagCount(8),
+		HitHeadshotDamage(80.0f), HitBodyDamage(40.0f), HitLimbDamage(20.0f), HitBaseDamage(30.0f)
+	{}
+
+	int32 GetDefaultAmmo() const { return MagCount * MagCapacity; }
+	int32 GetDefaultAmmo(bool bSubtractInitialMag) const { return bSubtractInitialMag ? GetDefaultAmmo() - MagCapacity : GetDefaultAmmo(); }
+};
+
+USTRUCT(BlueprintType)
+struct FWeaponStats : public FTableRowBase
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	FWeaponInfo WeaponInfo;
+
+	// TODO: Add additional info that's required by all weapon types
+
+	FWeaponStats() {}
+};
+
+USTRUCT(BlueprintType)
+struct FFirearmStats : public FTableRowBase
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	FWeaponInfo WeaponInfo;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	TArray<EFireMode> AllowedFireModes;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	float ShotsPerMinute;
+
+	/** How many bullets should be shot at a time? */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	uint8 ShotCount;
+
+	/** What kind of firearm is this? */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	EFirearmType FirearmType;
 
 	/// Accuracy
 
@@ -217,29 +254,26 @@ struct FFirearmStats : public FTableRowBase
 	FName TracerTargetName;
 
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly)
-	FFirearmVisuals FirearmVisuals;
+	FWeaponVisuals Visuals;
 
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly)
-	FFirearmSounds FirearmSounds;
+	FWeaponSounds Sounds;
 
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly)
-	FFirearmAnims AnimReload;
+	FWeaponAnims AnimReload;
 
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly)
-	FFirearmAnims AnimJammed;
+	FWeaponAnims AnimJammed;
 
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly)
-	FFirearmAnims AnimFireMode;
+	FWeaponAnims AnimFireMode;
 
 	FFirearmStats() :
-		Title("NoTitle"), Description("NoDescription"), AttachLocation(EFirearmAttachLocation::Right_Back), MagCapacity(30), MagCount(8), ShotsPerMinute(600), ShotCount(1),
-		HitHeadshotDamage(80.0f), HitBodyDamage(40.0f), HitLimbDamage(20.0f), HitBaseDamage(30.0f),
+		ShotsPerMinute(600), ShotCount(1),
 		ReloadSpeed(3.0f),
 		MuzzleSocketName("MuzzleFlashSocket"), TracerTargetName("Target")
 	{}
 
-	int32 GetDefaultAmmo() const { return MagCount * MagCapacity; }
-	int32 GetDefaultAmmo(bool bSubtractInitialMag) const { return bSubtractInitialMag ? GetDefaultAmmo() - MagCapacity : GetDefaultAmmo(); }
 	FString ConvertFireModeToString(EFireMode ToConvert)
 	{
 		if (ToConvert == EFireMode::FullAuto) return "Fully Automatic";

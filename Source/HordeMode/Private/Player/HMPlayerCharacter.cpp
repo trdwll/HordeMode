@@ -15,6 +15,7 @@
 
 #include "Components/HMCharacterMovementComponent.h"
 #include "Interfaces/Interactable.h"
+#include "Base/HMWeaponBase.h"
 #include "Base/HMFirearmBase.h"
 #include "HordeMode.h"
 
@@ -55,11 +56,11 @@ void AHMPlayerCharacter::BeginPlay()
 		FActorSpawnParameters SpawnParams;
 		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-		m_CurrentFirearm = GetWorld()->SpawnActor<AHMFirearmBase>(m_StarterWeaponClass, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
-		if (m_CurrentFirearm)
+		m_CurrentWeapon = GetWorld()->SpawnActor<AHMFirearmBase>(m_StarterWeaponClass, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+		if (m_CurrentWeapon)
 		{
-			m_CurrentFirearm->SetOwner(this);
-			m_CurrentFirearm->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, m_WeaponAttachSocketName);
+			m_CurrentWeapon->SetOwner(this);
+			m_CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, m_WeaponAttachSocketName);
 		}
 	}
 }
@@ -68,7 +69,7 @@ void AHMPlayerCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	DOREPLIFETIME(AHMPlayerCharacter, m_CurrentFirearm);
+	DOREPLIFETIME(AHMPlayerCharacter, m_CurrentWeapon);
 	DOREPLIFETIME_CONDITION(AHMPlayerCharacter, m_bIsJumping, COND_SkipOwner);
 	DOREPLIFETIME_CONDITION(AHMPlayerCharacter, m_bIsSprinting, COND_SkipOwner);
 	DOREPLIFETIME_CONDITION(AHMPlayerCharacter, m_bIsADS, COND_SkipOwner);
@@ -254,45 +255,51 @@ FRotator AHMPlayerCharacter::GetAimOffsets() const
 
 void AHMPlayerCharacter::StartAttack()
 {
-	if (m_CurrentFirearm)
+	if (m_CurrentWeapon)
 	{
-		m_CurrentFirearm->StartFire();
+		m_CurrentWeapon->StartFire();
 	}
 }
 
 void AHMPlayerCharacter::StopAttack()
 {
-	if (m_CurrentFirearm)
+	if (m_CurrentWeapon)
 	{
-		m_CurrentFirearm->StopFire();
+		m_CurrentWeapon->StopFire();
 	}
 }
 
 void AHMPlayerCharacter::StartReload()
 {
-	if (m_CurrentFirearm)
+	if (m_CurrentWeapon)
 	{
-		m_CurrentFirearm->Reload();
+		m_CurrentWeapon->StartReload();
 	}
 }
 
 void AHMPlayerCharacter::ToggleFireMode()
 {
-	if (m_CurrentFirearm && m_CurrentFirearm->GetFirearmStats().AllowedFireModes.Num() > 1)
+	if (m_CurrentWeapon)
 	{
-		FFirearmStats FirearmStats = m_CurrentFirearm->GetFirearmStats();
-
-		int32 index = FirearmStats.AllowedFireModes.Find(m_CurrentFirearm->GetFireMode());
-		int32 idx = 0;
-
-		if (FirearmStats.AllowedFireModes.IsValidIndex(index + 1))
+		if (AHMFirearmBase* const Firearm = Cast<AHMFirearmBase>(m_CurrentWeapon))
 		{
-			idx = index + 1;
+			if (Firearm->GetFirearmStats().AllowedFireModes.Num() > 1)
+			{
+				FFirearmStats FirearmStats = Firearm->GetFirearmStats();
+
+				int32 index = FirearmStats.AllowedFireModes.Find(Firearm->GetFireMode());
+				int32 idx = 0;
+
+				if (FirearmStats.AllowedFireModes.IsValidIndex(index + 1))
+				{
+					idx = index + 1;
+				}
+
+				EFireMode NewMode = FirearmStats.AllowedFireModes[idx];
+
+				Firearm->ToggleFireMode(NewMode);
+			}
 		}
-
-		EFireMode NewMode = FirearmStats.AllowedFireModes[idx];
-
-		m_CurrentFirearm->ToggleFireMode(NewMode);
 	}
 }
 
@@ -338,22 +345,22 @@ void AHMPlayerCharacter::Interact()
 	}
 }
 
-bool AHMPlayerCharacter::IsFirearmLocationAvailable(EFirearmAttachLocation Location)
+bool AHMPlayerCharacter::IsWeaponLocationAvailable(EWeaponAttachLocation Location)
 {
-	return nullptr == m_FirearmInventory.FindByPredicate([Location](AHMFirearmBase* Firearm)
+	return nullptr == m_WeaponInventory.FindByPredicate([Location](AHMWeaponBase* Weapon)
 	{
-		return Firearm->GetAttachLocation() == Location;
+		return Weapon->GetAttachLocation() == Location;
 	});
 }
 
-void AHMPlayerCharacter::AddFirearm(AHMFirearmBase* NewFirearm)
+void AHMPlayerCharacter::AddWeapon(AHMWeaponBase* NewWeapon)
 {
-	if (IsFirearmLocationAvailable(NewFirearm->GetAttachLocation()))
+	if (IsWeaponLocationAvailable(NewWeapon->GetAttachLocation()))
 	{
-		NewFirearm->SetOwner(this);
-		NewFirearm->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, m_WeaponAttachSocketName);
+		NewWeapon->SetOwner(this);
+		NewWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, m_WeaponAttachSocketName);
 
-		m_CurrentFirearm = NewFirearm;
+		m_CurrentWeapon = NewWeapon;
 		// m_Inventory.Add(NewFirearm);
 		PRINT("CALLED");
 	}

@@ -3,17 +3,18 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/Actor.h"
-
-#include "HMCommon.h"
+#include "Base/HMWeaponBase.h"
 
 #include "HMFirearmBase.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnFirearmAmmoChangedSignature, AHMFirearmBase*, FirearmActor, int32, CurrentAmmoInMag, int32, CurrentAmmo);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnFirearmFireModeChangedSignature, AHMFirearmBase*, FirearmActor, EFireMode, CurrentFireMode, EFireMode, NewFireMode);
 
+
+/**
+ * This is the base class for all types of firearms. - Rifle, pistol, rpg
+ */
 UCLASS()
-class HORDEMODE_API AHMFirearmBase : public AActor
+class HORDEMODE_API AHMFirearmBase : public AHMWeaponBase
 {
 	GENERATED_BODY()
 
@@ -28,9 +29,6 @@ protected:
 	/** --- HMFirearmBase code --- */
 protected:
 
-	UPROPERTY(VisibleAnywhere, Category = "HMFirearmBase", meta = (DisplayName = "Firearm Mesh"))
-	class USkeletalMeshComponent* m_FirearmMesh;
-
 	UPROPERTY(EditDefaultsOnly, Category = "HMFirearmBase", meta = (DisplayName = "Firearm ID"))
 	FName m_FirearmID;
 
@@ -42,18 +40,10 @@ private:
 	/** Store the default firearm stats. */
 	FFirearmStats m_FirearmStats;
 
-	EFirearmAttachLocation m_CurrentAttachLocation;
-
 	UPROPERTY(Replicated)
 	EFireMode m_CurrentFireMode;
 
-	EFirearmStatus m_FirearmStatus;
-
-	UPROPERTY(Replicated)
-	int32 m_CurrentAmmo;
-
-	UPROPERTY(Replicated)
-	int32 m_CurrentAmmoInMag;
+	EWeaponStatus m_WeaponStatus;
 
 	float m_CurrentHorizontalRecoil;
 	float m_CurrentVerticalRecoil;
@@ -100,55 +90,30 @@ public:
 	FORCEINLINE FFirearmStats GetFirearmStats() const { return m_FirearmStats; }
 
 	UFUNCTION(BlueprintPure, Category = "HMFirearmBase")
-	FORCEINLINE class USkeletalMeshComponent* GetFirearmMesh() const { return m_FirearmMesh; }
-
-	UFUNCTION(BlueprintPure, Category = "HMFirearmBase")
-	FORCEINLINE EFirearmAttachLocation GetAttachLocation() const { return m_CurrentAttachLocation; }
-
-	UFUNCTION(BlueprintPure, Category = "HMFirearmBase")
 	FORCEINLINE EFireMode GetFireMode() const { return m_CurrentFireMode; }
 
 	UFUNCTION(BlueprintPure, Category = "HMFirearmBase")
-	FORCEINLINE bool IsReloading() const { return m_FirearmStatus == EFirearmStatus::Reloading; }
+	FORCEINLINE bool IsReloading() const { return m_WeaponStatus == EWeaponStatus::Reloading; }
 
 	UFUNCTION(BlueprintPure, Category = "HMFirearmBase")
-	FORCEINLINE int32 GetCurrentAmmoInMag() const { return m_CurrentAmmoInMag; }
+	FORCEINLINE bool CanReload() const { return m_CurrentAmmo > 0 && m_CurrentAmmoInMag < m_FirearmStats.WeaponInfo.MagCapacity && !IsReloading(); }
 
 	UFUNCTION(BlueprintPure, Category = "HMFirearmBase")
-	FORCEINLINE int32 GetCurrentAmmo() const { return m_CurrentAmmo; }
-
-	UFUNCTION(BlueprintPure, Category = "HMFirearmBase")
-	FORCEINLINE bool HasAmmoInMag() const { return m_CurrentAmmoInMag > 0; }
-
-	UFUNCTION(BlueprintPure, Category = "HMFirearmBase")
-	FORCEINLINE bool HasAmmo() const { return m_CurrentAmmoInMag > 0 && m_CurrentAmmo > 0; }
-
-	UFUNCTION(BlueprintPure, Category = "HMFirearmBase")
-	FORCEINLINE bool CanReload() const { return m_CurrentAmmo > 0 && m_CurrentAmmoInMag < m_FirearmStats.MagCapacity && !IsReloading(); }
-
-	UFUNCTION(BlueprintPure, Category = "HMFirearmBase")
-	FORCEINLINE bool IsFiring() const { return m_FirearmStatus == EFirearmStatus::Firing; }
+	FORCEINLINE bool IsFiring() const { return m_WeaponStatus == EWeaponStatus::Firing; }
 
 	UFUNCTION(BlueprintPure, Category = "HMFirearmBase")
 	FORCEINLINE FString GetFireModeAsString(EFireMode FireMode) { return m_FirearmStats.ConvertFireModeToString(FireMode); }
 
-	void StartFire();
-	void StopFire();
+	virtual void StartFire() override;
+	virtual void StopFire() override;
+	virtual void StartReload() override;
 
-	void Reload();
 	void ToggleFireMode(EFireMode NewFireMode);
 
 	void Unjam() {}
 
-	/** Developer stuff */
-protected:
-	const bool m_bUnlimitedAmmo = false;
-
 	/** Delegates */
 protected:
-
-	UPROPERTY(BlueprintAssignable, Category = "HMFirearmBase", meta = (DisplayName = "OnFirearmAmmoChanged"))
-	FOnFirearmAmmoChangedSignature m_OnFirearmAmmoChanged;
 
 	UPROPERTY(BlueprintAssignable, Category = "HMFirearmBase", meta = (DisplayName = "OnFirearmFireModeChanged"))
 	FOnFirearmFireModeChangedSignature m_OnFirearmFireModeChanged;

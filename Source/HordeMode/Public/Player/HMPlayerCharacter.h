@@ -174,27 +174,27 @@ private:
     /** The distance that a character can interact with an actor. */
 	float m_MaxUseDistance;
 
-	/** The inventory for the character. -- For now we're just going to store the firearms (max 4) */
+	/** The inventory for the character. */
 	UPROPERTY(Replicated)
-	TArray<AHMFirearmBase*> m_FirearmInventory;
+	TArray<AHMWeaponBase*> m_WeaponInventory;
 
 public:
 
-	bool IsFirearmLocationAvailable(EFirearmAttachLocation Location);
+	bool IsWeaponLocationAvailable(EWeaponAttachLocation Location);
 
 	UPROPERTY(Replicated)
-	class AHMFirearmBase* m_CurrentFirearm;
+	class AHMWeaponBase* m_CurrentWeapon;
 
-	class AHMFirearmBase* m_PreviousFirearm;
+	class AHMWeaponBase* m_PreviousWeapon;
 
 	UFUNCTION(BlueprintPure, Category = "HMPlayerCharacter")
-	class AHMFirearmBase* GetCurrentFirearm() const { return m_CurrentFirearm; }
+	class AHMWeaponBase* GetCurrentWeapon() const { return m_CurrentWeapon; }
 
 	UPROPERTY(EditDefaultsOnly, Category = "HMPlayerCharacter", meta = (DisplayName = "Start Inventory"))
-	TSubclassOf<class AHMFirearmBase> m_StarterWeaponClass;
+	TSubclassOf<class AHMWeaponBase> m_StarterWeaponClass;
 
 	UPROPERTY(VisibleDefaultsOnly, Category = "HMPlayerCharacter", meta = (DisplayName = "Weapon Attach Socket"))
 	FName m_WeaponAttachSocketName;
 
-	void AddFirearm(AHMFirearmBase* NewFirearm);
+	void AddWeapon(AHMWeaponBase* NewWeapon);
 };

@@ -15,18 +15,9 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Particles/ParticleSystemComponent.h"
 
-AHMFirearmBase::AHMFirearmBase() : m_FirearmID("Default"), m_CurrentAttachLocation(EFirearmAttachLocation::Hands), m_CurrentFireMode(EFireMode::FullAuto), m_FirearmStatus(EFirearmStatus::Idle),
-m_CurrentAmmo(0), m_CurrentAmmoInMag(0)
+AHMFirearmBase::AHMFirearmBase() : m_FirearmID("Default"), m_CurrentFireMode(EFireMode::FullAuto), m_WeaponStatus(EWeaponStatus::Idle)
 {
 	PrimaryActorTick.bCanEverTick = true;
-
-	m_FirearmMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("FirearmMesh"));
-	RootComponent = m_FirearmMesh;
-
-	SetReplicates(true);
-
-	NetUpdateFrequency = 66.0f;
-	MinNetUpdateFrequency = 33.0f;
 }
 
 void AHMFirearmBase::BeginPlay()
@@ -35,22 +26,14 @@ void AHMFirearmBase::BeginPlay()
 
 	m_FirearmStats = UHMHelpers::GetFirearmStats(GetWorld(), m_FirearmID);
 	m_TimeBetweenShots = 60 / m_FirearmStats.ShotsPerMinute;
-	m_CurrentAmmo = m_FirearmStats.GetDefaultAmmo();
-	m_CurrentAmmoInMag = m_FirearmStats.MagCapacity;
+	m_CurrentAmmo = m_FirearmStats.WeaponInfo.GetDefaultAmmo();
+	m_CurrentAmmoInMag = m_FirearmStats.WeaponInfo.MagCapacity;
 	m_CurrentFireMode = m_FirearmStats.AllowedFireModes[0];
 
 	m_TargetHorizontalRecoil = m_FirearmStats.GetHRecoil();
 	m_TargetVerticalRecoil = m_FirearmStats.GetVRecoil();
 
-#ifdef _DEBUG
-	if (m_bUnlimitedAmmo)
-	{
-		m_CurrentAmmo = 9999;
-		m_CurrentAmmoInMag = 9999;
-	}
-#endif // _DEBUG
-
-	PRINT("Firearm Selected : " + m_FirearmStats.Title + " : " + FString::SanitizeFloat(m_TimeBetweenShots));
+	PRINT("Firearm Selected : " + m_FirearmStats.WeaponInfo.Title + " : " + FString::SanitizeFloat(m_TimeBetweenShots));
 }
 
 void AHMFirearmBase::Tick(float DeltaTime)
@@ -68,8 +51,6 @@ void AHMFirearmBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME_CONDITION(AHMFirearmBase, m_HitScanTrace, COND_SkipOwner);
-	DOREPLIFETIME_CONDITION(AHMFirearmBase, m_CurrentAmmo, COND_SkipOwner);
-	DOREPLIFETIME_CONDITION(AHMFirearmBase, m_CurrentAmmoInMag, COND_SkipOwner);
 }
 
 void AHMFirearmBase::Fire()
@@ -92,7 +73,7 @@ void AHMFirearmBase::Fire()
 
 	++m_ShotCount;
 
-	m_FirearmStatus = EFirearmStatus::Firing;
+	m_WeaponStatus = EWeaponStatus::Firing;
 	if (AActor* const MyOwner = GetOwner())
 	{
 		FVector EyeLocation;
@@ -126,27 +107,26 @@ void AHMFirearmBase::Fire()
 		{
 			SurfaceType = UPhysicalMaterial::DetermineSurfaceType(Hit.PhysMaterial.Get());
 
-			float ActualDamage = m_FirearmStats.HitBaseDamage;
+			float ActualDamage = m_FirearmStats.WeaponInfo.HitBaseDamage;
 			int32 Currency = 25;
 
 			switch (SurfaceType)
 			{
 			case SURFACE_ZOMBIEVULNERABLE:
-				ActualDamage = m_FirearmStats.HitHeadshotDamage * 1.5;
+				ActualDamage = m_FirearmStats.WeaponInfo.HitHeadshotDamage * 1.5;
 				break;
 			case SURFACE_ZOMBIEHEAD:
-				ActualDamage = m_FirearmStats.HitHeadshotDamage;
+				ActualDamage = m_FirearmStats.WeaponInfo.HitHeadshotDamage;
 				Currency = 100;
 				break;
 			case SURFACE_ZOMBIEBODY:
-				ActualDamage = m_FirearmStats.HitBodyDamage;
+				ActualDamage = m_FirearmStats.WeaponInfo.HitBodyDamage;
 				break;
 			case SURFACE_ZOMBIELIMB:
-				ActualDamage = m_FirearmStats.HitLimbDamage;
+				ActualDamage = m_FirearmStats.WeaponInfo.HitLimbDamage;
 				break;
 			default:
 			case SURFACE_ZOMBIEDEFAULT:
-				ActualDamage = m_FirearmStats.HitBaseDamage;
 				Currency = 10;
 				break;
 			}
@@ -175,7 +155,7 @@ void AHMFirearmBase::Fire()
 #endif // _DEBUGDRAW
 
 		--m_CurrentAmmoInMag;
-		m_OnFirearmAmmoChanged.Broadcast(this, m_CurrentAmmoInMag, m_CurrentAmmo);
+		m_OnWeaponAmmoChanged.Broadcast(this, m_CurrentAmmoInMag, m_CurrentAmmo);
 
 		PlayFireEffects(TracerEndPoint);
 
@@ -205,7 +185,7 @@ bool AHMFirearmBase::Server_Fire_Validate() { return true; }
 void AHMFirearmBase::Server_Fire_Implementation() { Fire(); }
 
 bool AHMFirearmBase::Server_Reload_Validate() { return true; }
-void AHMFirearmBase::Server_Reload_Implementation() { Reload(); }
+void AHMFirearmBase::Server_Reload_Implementation() { StartReload(); }
 
 void AHMFirearmBase::StartFire()
 {
@@ -233,12 +213,12 @@ void AHMFirearmBase::StopFire()
 			GetWorldTimerManager().ClearTimer(m_TimerHandle_TimeBetweenShots);
 		}
 
-		m_FirearmStatus = EFirearmStatus::Idle;
+		m_WeaponStatus = EWeaponStatus::Idle;
 		m_ShotCount = 0;
 	}
 }
 
-void AHMFirearmBase::Reload()
+void AHMFirearmBase::StartReload()
 {
 	if (!CanReload())
 	{
@@ -254,7 +234,7 @@ void AHMFirearmBase::Reload()
 	{
 		PlayAnimationMontage(m_FirearmStats.AnimReload.Standing);
 	}
-	m_FirearmStatus = EFirearmStatus::Reloading;
+	m_WeaponStatus = EWeaponStatus::Reloading;
 
 	GetWorldTimerManager().ClearTimer(m_TimerHandle_TimeBetweenShots);
 
@@ -294,43 +274,43 @@ void AHMFirearmBase::ReloadFinished()
 {
 	// Subtract ammo from m_CurrentAmmo if > 0 and add to m_CurrentAmmoInMag
 
-	int32 ToAdd = FMath::Min(m_CurrentAmmo, m_FirearmStats.MagCapacity - m_CurrentAmmoInMag);
+	int32 ToAdd = FMath::Min(m_CurrentAmmo, m_FirearmStats.WeaponInfo.MagCapacity - m_CurrentAmmoInMag);
 
 	m_CurrentAmmo -= ToAdd;
 	m_CurrentAmmoInMag += ToAdd;
 
-	m_OnFirearmAmmoChanged.Broadcast(this, m_CurrentAmmoInMag, m_CurrentAmmo);
+	m_OnWeaponAmmoChanged.Broadcast(this, m_CurrentAmmoInMag, m_CurrentAmmo);
 
-	m_FirearmStatus = EFirearmStatus::Idle;
+	m_WeaponStatus = EWeaponStatus::Idle;
 
 	m_LastFireTime = GetWorld()->TimeSeconds - m_TimeBetweenShots;
 }
 
 void AHMFirearmBase::PlayFireEffects(const FVector& TraceEnd)
 {
-	if (m_FirearmStats.FirearmVisuals.MuzzleEffect)
+	if (m_FirearmStats.Visuals.MuzzleEffect)
 	{
-		UGameplayStatics::SpawnEmitterAttached(m_FirearmStats.FirearmVisuals.MuzzleEffect, m_FirearmMesh, m_FirearmStats.MuzzleSocketName);
+		UGameplayStatics::SpawnEmitterAttached(m_FirearmStats.Visuals.MuzzleEffect, GetWeaponMesh(), m_FirearmStats.MuzzleSocketName);
 	}
 
-	if (m_FirearmStats.FirearmVisuals.TracerEffect)
+	if (m_FirearmStats.Visuals.TracerEffect)
 	{
-		FVector MuzzleLocation = m_FirearmMesh->GetSocketLocation(m_FirearmStats.MuzzleSocketName);
+		FVector MuzzleLocation = GetWeaponMesh()->GetSocketLocation(m_FirearmStats.MuzzleSocketName);
 
-		UParticleSystemComponent* TracerComp = UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), m_FirearmStats.FirearmVisuals.TracerEffect, MuzzleLocation);
+		UParticleSystemComponent* TracerComp = UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), m_FirearmStats.Visuals.TracerEffect, MuzzleLocation);
 		if (TracerComp)
 		{
 			TracerComp->SetVectorParameter(m_FirearmStats.TracerTargetName, TraceEnd);
 		}
 	}
 
-	if (m_FirearmStats.FirearmVisuals.FireCamShake)
+	if (m_FirearmStats.Visuals.FireCamShake)
 	{
 		if (APawn* const MyOwner = Cast<APawn>(GetOwner()))
 		{
 			if (APlayerController* const PC = Cast<APlayerController>(MyOwner->GetController()))
 			{
-				PC->ClientPlayCameraShake(m_FirearmStats.FirearmVisuals.FireCamShake);
+				PC->ClientPlayCameraShake(m_FirearmStats.Visuals.FireCamShake);
 			}
 		}
 	}
@@ -346,16 +326,16 @@ void AHMFirearmBase::PlayImpactEffects(EPhysicalSurface SurfaceType, const FVect
 	case SURFACE_ZOMBIEBODY:
 	case SURFACE_ZOMBIELIMB:
 	case SURFACE_ZOMBIEDEFAULT:
-		SelectedEffect = m_FirearmStats.FirearmVisuals.FleshImpactEffect;
+		SelectedEffect = m_FirearmStats.Visuals.FleshImpactEffect;
 		break;
 	default:
-		SelectedEffect = m_FirearmStats.FirearmVisuals.DefaultImpactEffect;
+		SelectedEffect = m_FirearmStats.Visuals.DefaultImpactEffect;
 		break;
 	}
 
 	if (SelectedEffect)
 	{
-		FVector MuzzleLocation = m_FirearmMesh->GetSocketLocation(m_FirearmStats.MuzzleSocketName);
+		FVector MuzzleLocation = GetWeaponMesh()->GetSocketLocation(m_FirearmStats.MuzzleSocketName);
 
 		FVector ShotDirection = ImpactPoint - MuzzleLocation;
 		ShotDirection.Normalize();
