@@ -41,8 +41,6 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera, meta = (DisplayName = "Base Lookup Rate"))
 	float m_BaseLookUpRate;
 
-
-
 protected:
 
 	/** Called for forwards/backward input */
@@ -169,7 +167,8 @@ private:
 	UFUNCTION(BlueprintCallable, Category = "HMPlayerCharacter")
 	void Interact();
 
-	// TODO: Create a ServerRPC for Interact
+	UFUNCTION(Server, Unreliable, WithValidation)
+	void Server_Interact();
 
     /** The distance that a character can interact with an actor. */
 	float m_MaxUseDistance;

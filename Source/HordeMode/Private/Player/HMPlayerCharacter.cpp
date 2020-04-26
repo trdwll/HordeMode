@@ -335,6 +335,12 @@ class AActor* AHMPlayerCharacter::GetActorInView()
 
 void AHMPlayerCharacter::Interact()
 {
+	if (GetLocalRole() < ROLE_Authority)
+	{
+		Server_Interact();
+		return;
+	}
+
 	if (AActor* const actor = GetActorInView())
 	{
 		// If the actor that you're looking at implements the interface InteractInterface
@@ -343,6 +349,12 @@ void AHMPlayerCharacter::Interact()
 			IInteractable::Execute_Interact(actor, this);
 		}
 	}
+}
+
+bool AHMPlayerCharacter::Server_Interact_Validate() { return true; }
+void AHMPlayerCharacter::Server_Interact_Implementation()
+{
+	Interact();
 }
 
 bool AHMPlayerCharacter::IsWeaponLocationAvailable(EWeaponAttachLocation Location)
