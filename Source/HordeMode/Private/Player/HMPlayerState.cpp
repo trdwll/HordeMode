@@ -32,6 +32,18 @@ void AHMPlayerState::Reset()
 	m_Deaths = 0;
 }
 
+void AHMPlayerState::SubtractCurrency(int32 CurrencyToSubtract)
+{
+	if (GetLocalRole() < ROLE_Authority)
+	{
+		Server_SubtractCurrency(CurrencyToSubtract);
+	}
+
+	m_Currency -= FMath::Clamp(m_Currency, 0, CurrencyToSubtract);
+
+	OnCharacterCurrencyChange.Broadcast(m_Currency);
+}
+
 void AHMPlayerState::AddCurrency(int32 CurrencyToAdd)
 {
 	if (GetLocalRole() < ROLE_Authority)
@@ -58,6 +70,9 @@ void AHMPlayerState::SetCurrency(int32 NewCurrency)
 
 bool AHMPlayerState::Server_AddCurrency_Validate(int32 CurrencyToAdd) { return true; }
 void AHMPlayerState::Server_AddCurrency_Implementation(int32 CurrencyToAdd) { AddCurrency(CurrencyToAdd); }
+
+bool AHMPlayerState::Server_SubtractCurrency_Validate(int32 CurrencyToSubtract) { return true; }
+void AHMPlayerState::Server_SubtractCurrency_Implementation(int32 CurrencyToSubtract) { SubtractCurrency(CurrencyToSubtract); }
 
 bool AHMPlayerState::Server_SetCurrency_Validate(int32 NewCurrency) { return true;}
 void AHMPlayerState::Server_SetCurrency_Implementation(int32 NewCurrency) { SetCurrency(NewCurrency); }

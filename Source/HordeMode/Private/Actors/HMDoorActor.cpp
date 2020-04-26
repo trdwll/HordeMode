@@ -35,22 +35,28 @@ void AHMDoorActor::Interact_Implementation(AHMPlayerCharacter* Player)
 {
 	if (Player == nullptr)
 	{
-		PRINT("Unable to interact - The interactor isn't valid!");
-		return;
-	}
-
-	if (m_Cost <= 0)
-	{
-		PRINT("Door has been purchased already.");
 		return;
 	}
 
 	if (AHMPlayerState* const PS = Cast<AHMPlayerState>(Player->GetPlayerState()))
 	{
-		// TODO: Subtract from the players currency
+		int32 CostPaid = FMath::Clamp(PS->GetCurrency(), 0, m_Cost);
+
+		if (CostPaid > 0)
+		{
+			PS->SubtractCurrency(CostPaid);
+
+			m_Cost -= CostPaid;
+
+			m_OnDoorPayToward.Broadcast(PS, CostPaid);
+		}
 	}
 
-	PRINT("Cost Left: " + *FString::FromInt(m_Cost));
+	if (m_Cost <= 0)
+	{
+		m_OnDoorPurchased.Broadcast();
+		return;
+	}
 }
 
 
