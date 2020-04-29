@@ -44,7 +44,7 @@ void AHMDoorActor::Interact_Implementation(AHMPlayerCharacter* Player)
 
 		if (CostPaid > 0)
 		{
-			PS->SubtractCurrency(CostPaid);
+			PS->SetCurrency(PS->GetCurrency() - CostPaid);
 
 			m_Cost -= CostPaid;
 

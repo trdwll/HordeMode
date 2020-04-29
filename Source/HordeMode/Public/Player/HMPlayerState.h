@@ -90,8 +90,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "HMPlayerState")
 	void AddCurrency(int32 CurrencyToAdd);
 
-	void SubtractCurrency(int32 CurrencyToSubtract);
-
 	UFUNCTION(BlueprintCallable, Category = "HMPlayerState")
 	void SetCurrency(int32 NewCurrency);
 
@@ -105,9 +103,6 @@ private:
 	 */
 	UFUNCTION(Server, Unreliable, WithValidation)
 	void Server_AddCurrency(int32 CurrencyToAdd);
-
-	UFUNCTION(Server, Unreliable, WithValidation)
-	void Server_SubtractCurrency(int32 CurrencyToSubtract);
 
 	UFUNCTION(Server, Unreliable, WithValidation)
 	void Server_SetCurrency(int32 NewCurrency);
