@@ -14,6 +14,7 @@
 #include "Particles/ParticleSystem.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Particles/ParticleSystemComponent.h"
+#include "Curves/CurveVector.h"
 
 AHMFirearmBase::AHMFirearmBase() : m_FirearmID("Default"), m_CurrentFireMode(EFireMode::FullAuto), m_WeaponStatus(EWeaponStatus::Idle)
 {
@@ -30,10 +31,7 @@ void AHMFirearmBase::BeginPlay()
 	m_CurrentAmmoInMag = m_FirearmStats.WeaponInfo.MagCapacity;
 	m_CurrentFireMode = m_FirearmStats.AllowedFireModes[0];
 
-	m_TargetHorizontalRecoil = m_FirearmStats.GetHRecoil();
-	m_TargetVerticalRecoil = m_FirearmStats.GetVRecoil();
-
-	PRINT("Firearm Selected : " + m_FirearmStats.WeaponInfo.Title + " : " + FString::SanitizeFloat(m_TimeBetweenShots));
+	PRINT("Firearm Selected : " + m_FirearmStats.WeaponInfo.Title);
 }
 
 void AHMFirearmBase::Tick(float DeltaTime)
@@ -42,6 +40,8 @@ void AHMFirearmBase::Tick(float DeltaTime)
 
 	if (IsFiring() && HasAmmoInMag() && m_FirearmStats.HasRecoil())
 	{
+		PRINT("m_RecoilTime = " + *FString::SanitizeFloat(m_RecoilTime));
+
 		HandleRecoil();
 	}
 }
@@ -190,6 +190,7 @@ void AHMFirearmBase::Server_Reload_Implementation() { StartReload(); }
 void AHMFirearmBase::StartFire()
 {
 	float FirstDelay = FMath::Max(m_LastFireTime + m_TimeBetweenShots - GetWorld()->TimeSeconds, 0.0f);
+	m_RecoilTime = UGameplayStatics::GetWorldDeltaSeconds(GetWorld());
 
 	switch (m_CurrentFireMode)
 	{
@@ -212,10 +213,12 @@ void AHMFirearmBase::StopFire()
 		{
 			GetWorldTimerManager().ClearTimer(m_TimerHandle_TimeBetweenShots);
 		}
-
-		m_WeaponStatus = EWeaponStatus::Idle;
-		m_ShotCount = 0;
 	}
+
+	m_WeaponStatus = EWeaponStatus::Idle;
+
+	m_ShotCount = 0;
+	m_RecoilTime = 0.0f;
 }
 
 void AHMFirearmBase::StartReload()
@@ -253,19 +256,12 @@ void AHMFirearmBase::ToggleFireMode(EFireMode NewFireMode)
 
 void AHMFirearmBase::HandleRecoil()
 {
-	float Horizontal = UKismetMathLibrary::FInterpTo(m_CurrentHorizontalRecoil, m_TargetHorizontalRecoil, UGameplayStatics::GetWorldDeltaSeconds(GetWorld()), 20.0f);
-	float Vertical = UKismetMathLibrary::FInterpTo(m_CurrentVerticalRecoil, m_TargetVerticalRecoil, UGameplayStatics::GetWorldDeltaSeconds(GetWorld()), 20.0f);
-
-	if (Horizontal - m_CurrentHorizontalRecoil != 0.0f || Vertical - m_CurrentVerticalRecoil != 0.0f)
+	m_RecoilTime += UGameplayStatics::GetWorldDeltaSeconds(GetWorld());
+	if (AHMPlayerCharacter* const Player = Cast<AHMPlayerCharacter>(GetOwner()))
 	{
-		if (AHMPlayerCharacter* const Player = Cast<AHMPlayerCharacter>(GetOwner()))
+		if (AHMPlayerController* const PlayerController = Cast<AHMPlayerController>(Player->GetController()))
 		{
-			if (AHMPlayerController* const PlayerController = Cast<AHMPlayerController>(Player->GetController()))
-			{
-				PlayerController->RegisterRecoil(Horizontal - m_CurrentHorizontalRecoil, Vertical - m_CurrentVerticalRecoil);
-				m_CurrentHorizontalRecoil = Horizontal;
-				m_CurrentVerticalRecoil = Vertical;
-			}
+			PlayerController->RegisterRecoil(m_FirearmStats.Recoil->GetVectorValue(m_RecoilTime).Y, m_FirearmStats.Recoil->GetVectorValue(m_RecoilTime).Z);
 		}
 	}
 }

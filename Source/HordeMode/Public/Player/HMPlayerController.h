@@ -16,7 +16,8 @@ class HORDEMODE_API AHMPlayerController final : public APlayerController
 
 public:
 
-    void RegisterRecoil(float Horizontal, float Vertical);
+    /** Pitch is Y and Yaw is Z - X is Roll */
+    void RegisterRecoil(float Pitch, float Yaw);
     void ResetRecoil();
 
 };

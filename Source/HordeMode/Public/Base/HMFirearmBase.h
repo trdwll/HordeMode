@@ -40,19 +40,13 @@ private:
 	/** Store the default firearm stats. */
 	FFirearmStats m_FirearmStats;
 
-	UPROPERTY(Replicated)
+	// UPROPERTY(Replicated)
 	EFireMode m_CurrentFireMode;
 
+	// UPROPERTY(Replicated)
 	EWeaponStatus m_WeaponStatus;
 
-	float m_CurrentHorizontalRecoil;
-	float m_CurrentVerticalRecoil;
-
-	float m_TargetHorizontalRecoil;
-	float m_TargetVerticalRecoil;
-
-	/** The time that it takes to reset the recoil to 0. */
-	float m_TimeToResetRecoil;
+	float m_RecoilTime;
 
 	FTimerHandle m_TimerHandle_TimeBetweenShots;
 
@@ -99,7 +93,7 @@ public:
 	FORCEINLINE bool CanReload() const { return m_CurrentAmmo > 0 && m_CurrentAmmoInMag < m_FirearmStats.WeaponInfo.MagCapacity && !IsReloading(); }
 
 	UFUNCTION(BlueprintPure, Category = "HMFirearmBase")
-	FORCEINLINE bool IsFiring() const { return m_WeaponStatus == EWeaponStatus::Firing; }
+	FORCEINLINE bool IsFiring() const { return m_WeaponStatus == EWeaponStatus::Firing && m_CurrentAmmoInMag > 0; }
 
 	UFUNCTION(BlueprintPure, Category = "HMFirearmBase")
 	FORCEINLINE FString GetFireModeAsString(EFireMode FireMode) { return m_FirearmStats.ConvertFireModeToString(FireMode); }
@@ -111,6 +105,21 @@ public:
 	void ToggleFireMode(EFireMode NewFireMode);
 
 	void Unjam() {}
+
+	UFUNCTION(BlueprintPure, Category = "HMFirearmBase")
+	FString GetStatus() const
+	{
+		switch (m_WeaponStatus)
+		{
+		case EWeaponStatus::Equipping: return "Equipping";
+		case EWeaponStatus::Firing: return "Firing";
+		case EWeaponStatus::Idle: return "Idle";
+		case EWeaponStatus::Jammed: return "Jammed";
+		case EWeaponStatus::Reloading: return "Reloading";
+		}
+
+		return "Invalid status";
+	}
 
 	/** Delegates */
 protected:

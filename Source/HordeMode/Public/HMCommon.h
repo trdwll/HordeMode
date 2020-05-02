@@ -228,10 +228,7 @@ struct FFirearmStats : public FTableRowBase
 	/// Accuracy
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	FVector2D HorizontalRecoil;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	FVector2D VerticalRecoil;
+	class UCurveVector* Recoil;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	FVector2D HorizontalSpread;
@@ -283,12 +280,12 @@ struct FFirearmStats : public FTableRowBase
 		return "N/A";
 	}
 
-	float GetHRecoil() const { return FMath::FRandRange(HorizontalRecoil.X, HorizontalRecoil.Y); }
+	/*float GetHRecoil() const { return FMath::FRandRange(HorizontalRecoil.X, HorizontalRecoil.Y); }
 	float GetVRecoil() const { return FMath::FRandRange(VerticalRecoil.X, VerticalRecoil.Y) * -1.0f; }
 	float GetHRecoil(float Min, float Max) const { return FMath::FRandRange(Min, Max); }
-	float GetVRecoil(float Min, float Max) const { return FMath::FRandRange(Min, Max) * -1.0f; }
+	float GetVRecoil(float Min, float Max) const { return FMath::FRandRange(Min, Max) * -1.0f; }*/
 
-	bool HasRecoil() const { return GetHRecoil() != 0.0f || GetVRecoil() != 0.0f; }
+	bool HasRecoil() const { return Recoil != nullptr; }
 	bool HasProjectile() const { return ProjectileClass == nullptr; }
 };
 

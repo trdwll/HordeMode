@@ -3,10 +3,10 @@
 
 #include "Player/HMPlayerController.h"
 
-void AHMPlayerController::RegisterRecoil(float Horizontal, float Vertical)
+void AHMPlayerController::RegisterRecoil(float Pitch, float Yaw)
 {
-	AddYawInput(Horizontal);
-	AddPitchInput(Vertical);
+	AddYawInput(Yaw);
+	AddPitchInput(Pitch);
 }
 
 void AHMPlayerController::ResetRecoil()

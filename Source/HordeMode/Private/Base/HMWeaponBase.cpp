@@ -20,14 +20,6 @@ AHMWeaponBase::AHMWeaponBase() : m_CurrentAttachLocation(EWeaponAttachLocation::
 void AHMWeaponBase::BeginPlay()
 {
 	Super::BeginPlay();
-
-#ifdef _DEBUG
-	if (m_bUnlimitedAmmo)
-	{
-		m_CurrentAmmo = 9999;
-		m_CurrentAmmoInMag = 9999;
-	}
-#endif // _DEBUG
 }
 
 void AHMWeaponBase::Tick(float DeltaTime)

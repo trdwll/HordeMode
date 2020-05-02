@@ -70,10 +70,6 @@ public:
 	UFUNCTION(BlueprintPure, Category = "HMWeaponBase")
 	FORCEINLINE bool HasAmmo() const { return m_CurrentAmmoInMag > 0 && m_CurrentAmmo > 0; }
 
-	/** Developer stuff */
-protected:
-	const bool m_bUnlimitedAmmo = false;
-
 protected:
 
 	UPROPERTY(BlueprintAssignable, Category = "HMWeaponBase", meta = (DisplayName = "OnWeaponAmmoChanged"))
