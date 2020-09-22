@@ -40,8 +40,6 @@ void AHMFirearmBase::Tick(float DeltaTime)
 
 	if (IsFiring() && HasAmmoInMag() && m_FirearmStats.HasRecoil())
 	{
-		PRINT("m_RecoilTime = " + *FString::SanitizeFloat(m_RecoilTime));
-
 		HandleRecoil();
 	}
 }
@@ -51,6 +49,7 @@ void AHMFirearmBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME_CONDITION(AHMFirearmBase, m_HitScanTrace, COND_SkipOwner);
+	DOREPLIFETIME(AHMFirearmBase, m_WeaponStatus);
 }
 
 void AHMFirearmBase::Fire()
@@ -187,6 +186,9 @@ void AHMFirearmBase::Server_Fire_Implementation() { Fire(); }
 bool AHMFirearmBase::Server_Reload_Validate() { return true; }
 void AHMFirearmBase::Server_Reload_Implementation() { StartReload(); }
 
+bool AHMFirearmBase::Server_SetStatus_Validate(EWeaponStatus NewStatus) { return true; }
+void AHMFirearmBase::Server_SetStatus_Implementation(EWeaponStatus NewStatus) { m_WeaponStatus = NewStatus; }
+
 void AHMFirearmBase::StartFire()
 {
 	float FirstDelay = FMath::Max(m_LastFireTime + m_TimeBetweenShots - GetWorld()->TimeSeconds, 0.0f);
@@ -213,12 +215,13 @@ void AHMFirearmBase::StopFire()
 		{
 			GetWorldTimerManager().ClearTimer(m_TimerHandle_TimeBetweenShots);
 		}
+
+		Server_SetStatus(EWeaponStatus::Idle);
+		// m_WeaponStatus = EWeaponStatus::Idle;
+
+		m_ShotCount = 0;
+		m_RecoilTime = 0.0f;
 	}
-
-	m_WeaponStatus = EWeaponStatus::Idle;
-
-	m_ShotCount = 0;
-	m_RecoilTime = 0.0f;
 }
 
 void AHMFirearmBase::StartReload()
@@ -237,7 +240,10 @@ void AHMFirearmBase::StartReload()
 	{
 		PlayAnimationMontage(m_FirearmStats.AnimReload.Standing);
 	}
+
 	m_WeaponStatus = EWeaponStatus::Reloading;
+
+	m_RecoilTime = 0.0f;
 
 	GetWorldTimerManager().ClearTimer(m_TimerHandle_TimeBetweenShots);
 
@@ -251,6 +257,7 @@ void AHMFirearmBase::ToggleFireMode(EFireMode NewFireMode)
 	{
 		m_OnFirearmFireModeChanged.Broadcast(this, m_CurrentFireMode, NewFireMode);
 		m_CurrentFireMode = NewFireMode;
+		//Server_SetFireMode(NewFireMode);
 	}
 }
 

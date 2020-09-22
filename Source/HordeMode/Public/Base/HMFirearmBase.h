@@ -40,10 +40,9 @@ private:
 	/** Store the default firearm stats. */
 	FFirearmStats m_FirearmStats;
 
-	// UPROPERTY(Replicated)
 	EFireMode m_CurrentFireMode;
 
-	// UPROPERTY(Replicated)
+	UPROPERTY(Replicated)
 	EWeaponStatus m_WeaponStatus;
 
 	float m_RecoilTime;
@@ -75,6 +74,9 @@ private:
 
 	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_Reload();
+
+	UFUNCTION(Server, Unreliable, WithValidation)
+	void Server_SetStatus(EWeaponStatus NewStatus);
 
 	void HandleRecoil();
 
